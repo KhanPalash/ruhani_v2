@@ -1,0 +1,6 @@
+{
+  "name": "Ruhani",
+  "description": "বাংলা-কেন্দ্রিক ইসলামি জীবনযাপন, নামাজের সময়, কুরআন, দোয়া, তাসবিহ ও ইবাদত অ্যাপ (Bangla Islamic Lifestyle & Worship App)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

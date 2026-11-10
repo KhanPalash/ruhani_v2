@@ -1,0 +1,269 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile, location preferences, calculation method, Qaza ledger, and Tasbih total.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name."
+        },
+        "email": {
+          "type": "string",
+          "description": "Optional user email address."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Optional user phone number."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Optional profile avatar URL."
+        },
+        "district": {
+          "type": "string",
+          "description": "Selected Bangladesh district ID/name."
+        },
+        "calculationMethod": {
+          "type": "string",
+          "description": "Prayer time calculation method key."
+        },
+        "madhhab": {
+          "type": "string",
+          "description": "Asr juristic method (HANAFI or SHAFI)."
+        },
+        "language": {
+          "type": "string",
+          "description": "App display language (bn or en)."
+        },
+        "themeMode": {
+          "type": "string",
+          "description": "Selected theme mode (DARK, LIGHT, or SYSTEM)."
+        },
+        "tasbihAllTimeTotal": {
+          "type": "integer",
+          "description": "Cumulative all-time Tasbih counter total."
+        },
+        "qazaFajr": {
+          "type": "integer",
+          "description": "Remaining Qaza Fajr prayers."
+        },
+        "qazaDhuhr": {
+          "type": "integer",
+          "description": "Remaining Qaza Dhuhr prayers."
+        },
+        "qazaAsr": {
+          "type": "integer",
+          "description": "Remaining Qaza Asr prayers."
+        },
+        "qazaMaghrib": {
+          "type": "integer",
+          "description": "Remaining Qaza Maghrib prayers."
+        },
+        "qazaIsha": {
+          "type": "integer",
+          "description": "Remaining Qaza Isha prayers."
+        },
+        "qazaWitr": {
+          "type": "integer",
+          "description": "Remaining Qaza Witr prayers."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "district",
+        "calculationMethod",
+        "madhhab",
+        "language",
+        "themeMode",
+        "tasbihAllTimeTotal",
+        "qazaFajr",
+        "qazaDhuhr",
+        "qazaAsr",
+        "qazaMaghrib",
+        "qazaIsha",
+        "qazaWitr",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SalatLog": {
+      "title": "SalatLog",
+      "description": "Daily Fard, Sunnah/Nafl, and Fasting tracker record for a specific date.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "dateKey": {
+          "type": "string",
+          "description": "ISO date string YYYY-MM-DD."
+        },
+        "fajr": {
+          "type": "boolean",
+          "description": "Whether Fajr prayer was completed."
+        },
+        "dhuhr": {
+          "type": "boolean",
+          "description": "Whether Dhuhr prayer was completed."
+        },
+        "asr": {
+          "type": "boolean",
+          "description": "Whether Asr prayer was completed."
+        },
+        "maghrib": {
+          "type": "boolean",
+          "description": "Whether Maghrib prayer was completed."
+        },
+        "isha": {
+          "type": "boolean",
+          "description": "Whether Isha prayer was completed."
+        },
+        "witr": {
+          "type": "boolean",
+          "description": "Whether Witr prayer was completed."
+        },
+        "duha": {
+          "type": "boolean",
+          "description": "Whether Duha prayer was completed."
+        },
+        "awwabin": {
+          "type": "boolean",
+          "description": "Whether Awwabin prayer was completed."
+        },
+        "tahajjud": {
+          "type": "boolean",
+          "description": "Whether Tahajjud prayer was completed."
+        },
+        "fasting": {
+          "type": "boolean",
+          "description": "Whether fasting was observed on this date."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "dateKey",
+        "fajr",
+        "dhuhr",
+        "asr",
+        "maghrib",
+        "isha",
+        "witr",
+        "duha",
+        "awwabin",
+        "tahajjud",
+        "fasting",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "QuranBookmark": {
+      "title": "QuranBookmark",
+      "description": "Saved Quran Ayah bookmark with user note.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "surahNumber": {
+          "type": "integer",
+          "description": "Surah number (1-114)."
+        },
+        "ayahNumber": {
+          "type": "integer",
+          "description": "Ayah number within the Surah."
+        },
+        "surahNameBn": {
+          "type": "string",
+          "description": "Bangla name of the Surah."
+        },
+        "surahNameEn": {
+          "type": "string",
+          "description": "English name of the Surah."
+        },
+        "arabicPreview": {
+          "type": "string",
+          "description": "Arabic text of the bookmarked Ayah."
+        },
+        "translationPreview": {
+          "type": "string",
+          "description": "Bangla translation of the bookmarked Ayah."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional personal reflection note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "surahNumber",
+        "ayahNumber",
+        "surahNameBn",
+        "surahNameEn",
+        "arabicPreview",
+        "translationPreview",
+        "note",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Authenticated user's profile, preferences, Qaza ledger, and Tasbih totals."
+    },
+    "/users/{userId}/salat_logs/{logId}": {
+      "schema": {
+        "$ref": "#/entities/SalatLog"
+      },
+      "description": "Authenticated user's daily Salat and fasting logs."
+    },
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": {
+        "$ref": "#/entities/QuranBookmark"
+      },
+      "description": "Authenticated user's saved Quran Ayah bookmarks."
+    }
+  }
+}
