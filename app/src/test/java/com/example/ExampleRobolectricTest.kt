@@ -22,6 +22,15 @@ class ExampleRobolectricTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
+    @org.junit.Before
+    fun setUp() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("ruhani_local_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("onboarded", true)
+            .apply()
+    }
+
     @Test
     fun appName_isRuhani() {
         val context = ApplicationProvider.getApplicationContext<Context>()

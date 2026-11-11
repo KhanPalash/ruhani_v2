@@ -27,6 +27,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.domain.QuranCatalog
+import com.example.ui.RuhaniUiState
+import com.example.ui.theme.EmeraldPrimary
+import com.example.ui.theme.PureWhite
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -179,8 +193,24 @@ fun RuhaniAppRoot() {
         val uiState by ruhaniViewModel.uiState.collectAsStateWithLifecycle()
 
         RuhaniTheme(themeMode = uiState.themeMode) {
-            // Back handler for tab switching when at root subScreen
-            BackHandler(
+            if (!uiState.hasCompletedOnboarding) {
+                OnboardingAndAuthScreen(
+                    uiState = uiState,
+                    onSelectDistrict = ruhaniViewModel::updateDistrict,
+                    onSelectMadhhab = ruhaniViewModel::updateMadhhab,
+                    onCompleteOnboarding = { isGuest ->
+                        ruhaniViewModel.completeOnboarding(isGuest)
+                    },
+                    onRegisterEmailPassword = { name, email, pass, consent ->
+                        ruhaniViewModel.registerWithEmailPassword(name, email, pass, consent)
+                    },
+                    onLoginEmailPassword = { email, pass ->
+                        ruhaniViewModel.loginWithEmailPassword(email, pass)
+                    }
+                )
+            } else {
+                // Back handler for tab switching when at root subScreen
+                BackHandler(
                 enabled = uiState.activeSubScreen != SubScreen.NONE || uiState.currentTab != MainTab.HOME
             ) {
                 ruhaniViewModel.navigateBack()
@@ -189,8 +219,8 @@ fun RuhaniAppRoot() {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 topBar = {
-                    if (uiState.activeSubScreen != SubScreen.SURAH_READER &&
-                        uiState.activeSubScreen != SubScreen.QIBLA
+                    if (uiState.activeSubScreen == SubScreen.NONE &&
+                        uiState.currentTab == MainTab.HOME
                     ) {
                         RuhaniTopBar(
                             uiState = uiState,
@@ -201,14 +231,32 @@ fun RuhaniAppRoot() {
                     }
                 },
                 bottomBar = {
-                    if (uiState.activeSubScreen != SubScreen.SURAH_READER &&
-                        uiState.activeSubScreen != SubScreen.QIBLA
-                    ) {
-                        RuhaniBottomNavigationBar(
-                            currentTab = uiState.currentTab,
-                            isBn = uiState.language == "bn",
-                            onSelectTab = ruhaniViewModel::selectTab
-                        )
+                    Column {
+                        if ((uiState.isAudioPlaying || uiState.playingSurahNumber != null) &&
+                            uiState.activeSubScreen != SubScreen.SURAH_READER
+                        ) {
+                            QuranGlobalMiniPlayer(
+                                uiState = uiState,
+                                onTogglePlayPause = ruhaniViewModel::toggleGlobalAudioPlayPause,
+                                onClose = ruhaniViewModel::stopAndDismissAudio,
+                                onOpenSurah = {
+                                    val surahNum = uiState.playingSurahNumber ?: 1
+                                    val targetSurah = QuranCatalog.surahs.firstOrNull { it.number == surahNum }
+                                    if (targetSurah != null) {
+                                        ruhaniViewModel.openSurah(targetSurah)
+                                    }
+                                }
+                            )
+                        }
+                        if (uiState.activeSubScreen != SubScreen.SURAH_READER &&
+                            uiState.activeSubScreen != SubScreen.QIBLA
+                        ) {
+                            RuhaniBottomNavigationBar(
+                                currentTab = uiState.currentTab,
+                                isBn = uiState.language == "bn",
+                                onSelectTab = ruhaniViewModel::selectTab
+                            )
+                        }
                     }
                 }
             ) { innerPadding ->
@@ -233,12 +281,15 @@ fun RuhaniAppRoot() {
                             onToggleRepeat3x = ruhaniViewModel::toggleAudioRepeat3x,
                             onToggleAutoAdvance = ruhaniViewModel::toggleAudioAutoAdvance,
                             onToggleTafsir = ruhaniViewModel::toggleTafsirForAyah,
-                            onToggleBookmark = ruhaniViewModel::toggleBookmark
+                            onToggleBookmark = ruhaniViewModel::toggleBookmark,
+                            onDownloadAyah = ruhaniViewModel::downloadAyahAudio,
+                            onCloseAudio = ruhaniViewModel::stopAndDismissAudio
                         )
 
                         SubScreen.TASBIH -> DigitalTasbihScreen(
                             uiState = uiState,
                             onBack = { ruhaniViewModel.openSubScreen(SubScreen.NONE) },
+                            onOpenSettings = { ruhaniViewModel.openSubScreen(SubScreen.SETTINGS) },
                             onSelectPreset = ruhaniViewModel::selectTasbihPreset,
                             onIncrement = ruhaniViewModel::incrementTasbih,
                             onRequestReset = ruhaniViewModel::requestTasbihReset,
@@ -372,7 +423,9 @@ fun RuhaniAppRoot() {
                             onToggleBanglaDigits = ruhaniViewModel::toggleBanglaDigits,
                             onUpdateDistrict = ruhaniViewModel::updateDistrict,
                             onUpdateMethod = ruhaniViewModel::updateCalculationMethod,
-                            onUpdateMadhhab = ruhaniViewModel::updateMadhhab
+                            onUpdateMadhhab = ruhaniViewModel::updateMadhhab,
+                            onToggleTasbihVibration = ruhaniViewModel::toggleTasbihVibration,
+                            onToggleTasbihSound = ruhaniViewModel::toggleTasbihSound
                         )
 
                         SubScreen.NONE -> {
@@ -409,6 +462,7 @@ fun RuhaniAppRoot() {
                 }
             }
         }
+    }
     }
 }
 
@@ -506,6 +560,123 @@ private fun RuhaniBottomNavigationBar(
                                 color = animatedContentColor
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun QuranGlobalMiniPlayer(
+    uiState: RuhaniUiState,
+    onTogglePlayPause: () -> Unit,
+    onClose: () -> Unit,
+    onOpenSurah: () -> Unit
+) {
+    val isBn = uiState.language == "bn"
+    val surahNum = uiState.playingSurahNumber ?: 1
+    val ayahNum = uiState.playingAyahNumber ?: 1
+    val surah = QuranCatalog.surahs.firstOrNull { it.number == surahNum }
+        ?: QuranCatalog.surahs.first()
+    val surahName = if (isBn) surah.nameBn else surah.nameEn
+    val ayahText = if (isBn) "আয়াত $ayahNum" else "Ayah $ayahNum"
+    val qariName = if (isBn) uiState.selectedQari.nameBn else uiState.selectedQari.nameEn
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 8.dp,
+        border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("global_quran_mini_player")
+            .clickable { onOpenSurah() }
+    ) {
+        Column {
+            LinearProgressIndicator(
+                progress = { uiState.audioProgressFraction },
+                color = EmeraldPrimary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(EmeraldPrimary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = null,
+                            tint = EmeraldPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "$surahName • $ayahText",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = qariName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    IconButton(
+                        onClick = onTogglePlayPause,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(EmeraldPrimary)
+                            .testTag("global_mini_player_play_pause")
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (uiState.isAudioPlaying) "Pause" else "Play",
+                            tint = PureWhite,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("global_mini_player_close")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close Player",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }

@@ -1,4 +1,4 @@
-quranicaudio.com#!/bin/sh
+#!/bin/sh
 
 #
 # Copyright © 2015 the original authors.

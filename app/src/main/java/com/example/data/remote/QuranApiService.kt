@@ -77,32 +77,32 @@ object QuranApiService {
             "1" to QuranApiReciterAudio(
                 reciterKey = "1",
                 reciterName = "Mishary Rashid Al Afasy",
-                url = "$AUDIO_CDN_BASE/1/${surahNo}_${ayahNo}.mp3",
-                originalUrl = "https://everyayah.com/data/Alafasy_128kbps/$code.mp3"
+                url = "https://everyayah.com/data/Alafasy_128kbps/$code.mp3",
+                originalUrl = "$AUDIO_CDN_BASE/1/${surahNo}_${ayahNo}.mp3"
             ),
             "2" to QuranApiReciterAudio(
                 reciterKey = "2",
                 reciterName = "Abu Bakr Al Shatri",
-                url = "$AUDIO_CDN_BASE/2/${surahNo}_${ayahNo}.mp3",
-                originalUrl = "https://everyayah.com/data/Abu_Bakr_Ash-Shaatree_128kbps/$code.mp3"
+                url = "https://everyayah.com/data/Abu_Bakr_Ash-Shaatree_128kbps/$code.mp3",
+                originalUrl = "$AUDIO_CDN_BASE/2/${surahNo}_${ayahNo}.mp3"
             ),
             "3" to QuranApiReciterAudio(
                 reciterKey = "3",
                 reciterName = "Nasser Al Qatami",
-                url = "$AUDIO_CDN_BASE/3/${surahNo}_${ayahNo}.mp3",
-                originalUrl = "https://everyayah.com/data/Nasser_Alqatami_128kbps/$code.mp3"
+                url = "https://everyayah.com/data/Nasser_Alqatami_128kbps/$code.mp3",
+                originalUrl = "$AUDIO_CDN_BASE/3/${surahNo}_${ayahNo}.mp3"
             ),
             "4" to QuranApiReciterAudio(
                 reciterKey = "4",
                 reciterName = "Yasser Al Dosari",
-                url = "$AUDIO_CDN_BASE/4/${surahNo}_${ayahNo}.mp3",
-                originalUrl = "https://everyayah.com/data/Yasser_Ad-Dussary_128kbps/$code.mp3"
+                url = "https://everyayah.com/data/Yasser_Ad-Dussary_128kbps/$code.mp3",
+                originalUrl = "$AUDIO_CDN_BASE/4/${surahNo}_${ayahNo}.mp3"
             ),
             "5" to QuranApiReciterAudio(
                 reciterKey = "5",
                 reciterName = "Hani Ar Rifai",
-                url = "$AUDIO_CDN_BASE/5/${surahNo}_${ayahNo}.mp3",
-                originalUrl = "https://everyayah.com/data/Hani_Rifai_192kbps/$code.mp3"
+                url = "https://everyayah.com/data/Hani_Rifai_192kbps/$code.mp3",
+                originalUrl = "$AUDIO_CDN_BASE/5/${surahNo}_${ayahNo}.mp3"
             )
         )
     }

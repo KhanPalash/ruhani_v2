@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
@@ -465,7 +466,9 @@ fun SurahReaderScreen(
     onToggleRepeat3x: () -> Unit,
     onToggleAutoAdvance: () -> Unit = {},
     onToggleTafsir: (Int, Int) -> Unit,
-    onToggleBookmark: (QuranSurah, QuranAyah) -> Unit
+    onToggleBookmark: (QuranSurah, QuranAyah) -> Unit,
+    onDownloadAyah: (Int, Int) -> Unit = { _, _ -> },
+    onCloseAudio: () -> Unit = {}
 ) {
     BackHandler { onBack() }
 
@@ -743,6 +746,39 @@ fun SurahReaderScreen(
                 }
             }
 
+            // Empty State / Loading Indicator while syncing from API
+            if (surah.ayahs.isEmpty()) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = NoorEmeraldPrimary,
+                                modifier = Modifier.size(36.dp),
+                                strokeWidth = 3.dp
+                            )
+                            Text(
+                                text = if (isBn) "সূরাটি লোড হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন"
+                                else "Loading Surah verses from Quran-API... Please wait",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+
             // Ayah Cards
             items(surah.ayahs) { ayah ->
                 val isPlayingThisAyah =
@@ -895,6 +931,38 @@ fun SurahReaderScreen(
                                         tint = if (isBookmarked) NoorGoldAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
+                                }
+
+                                // Download Ayah Audio
+                                val ayahKey = "${surah.number}_${ayah.ayahNumber}"
+                                val isDownloadingThisAyah = uiState.downloadingAyahKey == ayahKey
+                                val isDownloaded = ayahKey in uiState.downloadedAyahKeys ||
+                                    (surah.number in uiState.downloadedSurahIds)
+
+                                IconButton(
+                                    onClick = {
+                                        if (!isDownloaded && !isDownloadingThisAyah) {
+                                            onDownloadAyah(surah.number, ayah.ayahNumber)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .testTag("ayah_download_btn_${ayah.ayahNumber}")
+                                ) {
+                                    if (isDownloadingThisAyah) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = NoorMintLuminous,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (isDownloaded) Icons.Default.CheckCircle else Icons.Default.Download,
+                                            contentDescription = if (isDownloaded) "Downloaded" else "Download Ayah Audio",
+                                            tint = if (isDownloaded) NoorMintLuminous else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
 
                                 // Share Ayah
@@ -1145,6 +1213,7 @@ fun SurahReaderScreen(
         }
 
         // 3. Persistent Bottom Qari Audio Player Bar (The-Quran-Project/Quran-API)
+        if (uiState.isAudioPlaying || uiState.playingSurahNumber != null) {
         Surface(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 8.dp,
@@ -1301,9 +1370,23 @@ fun SurahReaderScreen(
                                 contentDescription = "Next Ayah"
                             )
                         }
+
+                        IconButton(
+                            onClick = onCloseAudio,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .testTag("quran_audio_close_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close Audio Player",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
+        }
         }
     }
 
@@ -1473,14 +1556,15 @@ private fun ReaderActionPill(
 fun DigitalTasbihScreen(
     uiState: RuhaniUiState,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onSelectPreset: (TasbihPreset) -> Unit,
     onIncrement: () -> Unit,
     onRequestReset: () -> Unit,
     onDismissReset: () -> Unit,
     onConfirmReset: () -> Unit,
     onNewCycle: () -> Unit,
-    onToggleVibration: () -> Unit,
-    onToggleSound: () -> Unit,
+    onToggleVibration: () -> Unit = {},
+    onToggleSound: () -> Unit = {},
     onSpeakArabic: (String) -> Unit,
     onUpdateTarget: (Int) -> Unit = {}
 ) {
@@ -1502,7 +1586,7 @@ fun DigitalTasbihScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Top Header with Back + Vibration & Sound Toggles
+        // 1. Top Header with Back + Settings Navigation Button
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1542,57 +1626,21 @@ fun DigitalTasbihScreen(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(
-                        onClick = onToggleVibration,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                if (uiState.tasbihVibrationEnabled) EmeraldPrimary.copy(alpha = 0.22f)
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            .border(
-                                1.dp,
-                                if (uiState.tasbihVibrationEnabled) EmeraldPrimary else Color.Transparent,
-                                RoundedCornerShape(10.dp)
-                            )
-                            .testTag("tasbih_vibration_toggle")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Vibration,
-                            contentDescription = "Vibration Toggle",
-                            tint = if (uiState.tasbihVibrationEnabled) EmeraldPrimary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onToggleSound,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                if (uiState.tasbihSoundEnabled) EmeraldPrimary.copy(alpha = 0.22f)
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            .border(
-                                1.dp,
-                                if (uiState.tasbihSoundEnabled) EmeraldPrimary else Color.Transparent,
-                                RoundedCornerShape(10.dp)
-                            )
-                            .testTag("tasbih_sound_toggle")
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.tasbihSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp
-                            else Icons.AutoMirrored.Filled.VolumeOff,
-                            contentDescription = "Sound Toggle",
-                            tint = if (uiState.tasbihSoundEnabled) EmeraldPrimary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(EmeraldPrimary.copy(alpha = 0.16f))
+                        .border(1.dp, EmeraldPrimary.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                        .testTag("tasbih_settings_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Tasbih Settings",
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -1784,216 +1832,188 @@ fun DigitalTasbihScreen(
         }
 
         // 4. Giant Visual Display of Current Count & Circular Progress Ring
-        item {
-            Box(
-                modifier = Modifier
-                    .size(256.dp)
-                    .padding(6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                val trackColor = MaterialTheme.colorScheme.surfaceVariant
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val strokeWidth = 14.dp.toPx()
-                    drawArc(
-                        color = trackColor,
-                        startAngle = 0f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                    )
-                    drawArc(
-                        color = EmeraldPrimary,
-                        startAngle = -90f,
-                        sweepAngle = 360f * progress,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                    )
-                    if (progress >= 0.98f) {
-                        drawArc(
-                            color = SignalRed,
-                            startAngle = -90f,
-                            sweepAngle = 360f,
-                            useCenter = false,
-                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
-                        )
-                    }
-                }
-
-                // Inner Tactile Circle Display & Tap Target
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(2.dp, EmeraldPrimary.copy(alpha = 0.6f)),
-                    tonalElevation = 8.dp,
-                    modifier = Modifier
-                        .size(208.dp)
-                        .clip(CircleShape)
-                        .testTag("tasbih_tap_button")
-                        .clickable { onIncrement() }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(RuhaniHalkaCardBrush),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = if (isBn) "বর্তমান গণনা • CURRENT COUNT" else "CURRENT COUNT",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = EmeraldPrimary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Row(
-                            verticalAlignment = Alignment.Bottom,
-                            modifier = Modifier.testTag("tasbih_count_display")
-                        ) {
-                            Text(
-                                text = uiState.tasbihCurrentCount.toString(),
-                                style = MaterialTheme.typography.displayLarge.copy(
-                                    fontFamily = SpaceGroteskFontFamily,
-                                    fontSize = 56.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = " /${uiState.tasbihTarget}",
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontFamily = SpaceGroteskFontFamily,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = SignalRed,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                        }
-                        val todayTotal = remember(uiState.tasbihCurrentCount, uiState.tasbihCountsByPreset) {
-                            uiState.tasbihCountsByPreset.values.sum() + uiState.tasbihCurrentCount
-                        }
-                        Text(
-                            text = if (isBn) "আজকের মোট: $todayTotal" else "Today Total: $todayTotal",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = EmeraldPrimary,
-                            border = BorderStroke(1.dp, EmeraldPrimary)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.TouchApp,
-                                    contentDescription = null,
-                                    tint = PureWhite,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = if (isBn) "ট্যাপ করে গণনা করুন" else "TAP TO COUNT",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PureWhite
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5. Explicit Increment (+1) & Reset Action Buttons (#14a673 & #f02828)
+        // 4. Giant Visual Display of Current Count & Circular Progress Ring (Moved down, Reset button at top right)
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Spacer(modifier = Modifier.height(18.dp)) // ektu niche kore daw
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Dedicated Increment Button (#14a673)
-                    Button(
-                        onClick = onIncrement,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = EmeraldPrimary,
-                            contentColor = PureWhite
-                        ),
+                    // Tactile Circular Counter & Progress Ring
+                    Box(
                         modifier = Modifier
-                            .weight(1.35f)
-                            .height(54.dp)
-                            .testTag("tasbih_increment_button")
+                            .size(256.dp)
+                            .padding(6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Increment Zikr",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isBn) "+১ যিকির গণনা (Increment)" else "+1 Increment Zikr",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = PureWhite
-                        )
+                        val trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val strokeWidth = 14.dp.toPx()
+                            drawArc(
+                                color = trackColor,
+                                startAngle = 0f,
+                                sweepAngle = 360f,
+                                useCenter = false,
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                            drawArc(
+                                color = EmeraldPrimary,
+                                startAngle = -90f,
+                                sweepAngle = 360f * progress,
+                                useCenter = false,
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                            if (progress >= 0.98f) {
+                                drawArc(
+                                    color = SignalRed,
+                                    startAngle = -90f,
+                                    sweepAngle = 360f,
+                                    useCenter = false,
+                                    style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                                )
+                            }
+                        }
+
+                        // Inner Tactile Circle Display & Tap Target
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(2.dp, EmeraldPrimary.copy(alpha = 0.6f)),
+                            tonalElevation = 8.dp,
+                            modifier = Modifier
+                                .size(208.dp)
+                                .clip(CircleShape)
+                                .testTag("tasbih_tap_button")
+                                .clickable { onIncrement() }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(RuhaniHalkaCardBrush),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = if (isBn) "বর্তমান গণনা • CURRENT COUNT" else "CURRENT COUNT",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    modifier = Modifier.testTag("tasbih_count_display")
+                                ) {
+                                    Text(
+                                        text = uiState.tasbihCurrentCount.toString(),
+                                        style = MaterialTheme.typography.displayLarge.copy(
+                                            fontFamily = SpaceGroteskFontFamily,
+                                            fontSize = 56.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = " /${uiState.tasbihTarget}",
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontFamily = SpaceGroteskFontFamily,
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        color = SignalRed,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                }
+                                val todayTotal = remember(uiState.tasbihCurrentCount, uiState.tasbihCountsByPreset) {
+                                    uiState.tasbihCountsByPreset.values.sum() + uiState.tasbihCurrentCount
+                                }
+                                Text(
+                                    text = if (isBn) "আজকের মোট: $todayTotal" else "Today Total: $todayTotal",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = EmeraldPrimary,
+                                    border = BorderStroke(1.dp, EmeraldPrimary)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.TouchApp,
+                                            contentDescription = null,
+                                            tint = PureWhite,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Text(
+                                            text = if (isBn) "ট্যাপ করে গণনা করুন" else "TAP TO COUNT",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = PureWhite
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    // Dedicated Reset Button (#f02828)
-                    Button(
+                    // Reset Button placed at the Top Right of the round button
+                    IconButton(
                         onClick = onRequestReset,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SignalRed,
-                            contentColor = PureWhite
-                        ),
                         modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp)
+                            .align(Alignment.TopEnd)
+                            .padding(end = 12.dp, top = 2.dp)
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(SignalRed.copy(alpha = 0.16f))
+                            .border(1.5.dp, SignalRed.copy(alpha = 0.7f), CircleShape)
                             .testTag("tasbih_reset_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Reset Zikr",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isBn) "রিসেট (Reset)" else "Reset",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = PureWhite
+                            tint = SignalRed,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
+            }
+        }
 
-                OutlinedButton(
-                    onClick = onNewCycle,
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.6f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .testTag("tasbih_new_cycle_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = EmeraldPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isBn) "নতুন চক্র শুরু করুন (Start New Cycle • ${uiState.tasbihCycle}/${uiState.tasbihTotalCycles})"
-                        else "Start New Cycle (${uiState.tasbihCycle}/${uiState.tasbihTotalCycles})",
-                        color = EmeraldPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+        // 5. New Cycle Action Button
+        item {
+            OutlinedButton(
+                onClick = onNewCycle,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.6f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+                    .testTag("tasbih_new_cycle_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = EmeraldPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isBn) "নতুন চক্র শুরু করুন (Start New Cycle • ${uiState.tasbihCycle}/${uiState.tasbihTotalCycles})"
+                    else "Start New Cycle (${uiState.tasbihCycle}/${uiState.tasbihTotalCycles})",
+                    color = EmeraldPrimary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -2076,73 +2096,6 @@ fun DigitalTasbihScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = SignalRed,
                                 modifier = Modifier.padding(bottom = 3.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 7. Vibration & Sound Status Toggles (Design Match 06_tasbih)
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isBn) "ভাইব্রেশন (Vibration)" else "Vibration",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = if (uiState.tasbihVibrationEnabled) EmeraldPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(1.dp, if (uiState.tasbihVibrationEnabled) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                            modifier = Modifier.clickable { onToggleVibration() }
-                        ) {
-                            Text(
-                                text = if (uiState.tasbihVibrationEnabled) "On" else "Off",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (uiState.tasbihVibrationEnabled) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isBn) "শব্দ (Sound)" else "Sound",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = if (uiState.tasbihSoundEnabled) EmeraldPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(1.dp, if (uiState.tasbihSoundEnabled) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                            modifier = Modifier.clickable { onToggleSound() }
-                        ) {
-                            Text(
-                                text = if (uiState.tasbihSoundEnabled) "On" else "Off",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (uiState.tasbihSoundEnabled) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                             )
                         }
                     }

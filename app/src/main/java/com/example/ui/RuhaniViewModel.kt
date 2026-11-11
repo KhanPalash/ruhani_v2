@@ -135,8 +135,8 @@ data class RuhaniUiState(
     val hifzHideArabic: Boolean = false,
     val hifzHideTranslation: Boolean = false,
     val selectedQari: QariInfo = QuranCatalog.qariList.first(),
-    val playingSurahNumber: Int? = 1,
-    val playingAyahNumber: Int? = 2,
+    val playingSurahNumber: Int? = null,
+    val playingAyahNumber: Int? = null,
     val isAudioPlaying: Boolean = false,
     val isAudioBuffering: Boolean = false,
     val audioAutoAdvance: Boolean = true,
@@ -152,6 +152,8 @@ data class RuhaniUiState(
     val expandedTafsirAyahKey: String? = null,
     val downloadedSurahIds: Set<Int> = setOf(1, 36, 67, 112, 113, 114),
     val downloadingSurahId: Int? = null,
+    val downloadedAyahKeys: Set<String> = emptySet(),
+    val downloadingAyahKey: String? = null,
     val isPlayingFromOfflineCache: Boolean = false,
     // Auth & Privacy State
     val authProvider: String = "GUEST", // "GOOGLE", "EMAIL_PASSWORD", "GUEST"
@@ -334,6 +336,7 @@ class RuhaniViewModel(
             privacyDataMinimization = localSession?.privacyAnalyticsMinimize ?: true,
             isDeviceOnline = OfflineContentAndSyncManager.isDeviceOnline(appContext),
             downloadedArticleIds = OfflineContentAndSyncManager.getDownloadedArticleIds(appContext),
+            downloadedAyahKeys = prefs.getStringSet("downloaded_ayah_keys", emptySet())?.toSet() ?: emptySet(),
             articleReadProgress = OfflineContentAndSyncManager.getArticleProgressMap(appContext).ifEmpty {
                 mapOf("art_khushu_salat" to 35)
             },
@@ -906,7 +909,7 @@ class RuhaniViewModel(
         } else {
             val surah = if (s.selectedSurah.number == s.playingSurahNumber) s.selectedSurah
             else QuranCatalog.surahs.firstOrNull { it.number == s.playingSurahNumber } ?: s.selectedSurah
-            val ayah = surah.ayahs.firstOrNull { it.ayahNumber == s.playingAyahNumber } ?: surah.ayahs.first()
+            val ayah = surah.ayahs.firstOrNull { it.ayahNumber == s.playingAyahNumber } ?: surah.ayahs.firstOrNull() ?: return
             startAyahPlayback(surah, ayah, resetRepeatCounter = false)
         }
     }
@@ -915,6 +918,7 @@ class RuhaniViewModel(
         val s = _uiState.value
         val surah = if (s.selectedSurah.number == s.playingSurahNumber) s.selectedSurah
         else QuranCatalog.surahs.firstOrNull { it.number == s.playingSurahNumber } ?: s.selectedSurah
+        if (surah.ayahs.isEmpty()) return
         val idx = surah.ayahs.indexOfFirst { it.ayahNumber == s.playingAyahNumber }.coerceAtLeast(0)
         val nextIdx = (idx + delta).coerceIn(0, surah.ayahs.lastIndex)
         startAyahPlayback(surah, surah.ayahs[nextIdx], resetRepeatCounter = true)
@@ -1174,7 +1178,7 @@ class RuhaniViewModel(
         }
     }
 
-    private fun pauseAudio() {
+    fun pauseAudio() {
         audioPlayJob?.cancel()
         releaseMediaPlayer()
         try {
@@ -1185,6 +1189,25 @@ class RuhaniViewModel(
             it.copy(
                 isAudioPlaying = false,
                 isAudioBuffering = false
+            )
+        }
+    }
+
+    fun stopAndDismissAudio() {
+        audioPlayJob?.cancel()
+        releaseMediaPlayer()
+        try {
+            tts?.stop()
+        } catch (_: Exception) {
+        }
+        _uiState.update {
+            it.copy(
+                isAudioPlaying = false,
+                isAudioBuffering = false,
+                playingSurahNumber = null,
+                playingAyahNumber = null,
+                audioProgressFraction = 0f,
+                audioCurrentPositionMs = 0
             )
         }
     }
@@ -1232,6 +1255,42 @@ class RuhaniViewModel(
             if (authenticatedUserId != null && firestoreRepository != null) {
                 viewModelScope.launch {
                     firestoreRepository.addBookmark(bm)
+                }
+            }
+        }
+    }
+
+    fun downloadAyahAudio(surahNumber: Int, ayahNumber: Int) {
+        val key = "${surahNumber}_${ayahNumber}"
+        val current = _uiState.value
+        if (key in current.downloadedAyahKeys || current.downloadingAyahKey == key) return
+
+        _uiState.update { it.copy(downloadingAyahKey = key) }
+        val reciterKey = QuranApiService.normalizeReciterKey(current.selectedQari.id)
+        viewModelScope.launch {
+            val success = OfflineContentAndSyncManager.downloadAyahAudioForOffline(
+                context = appContext,
+                reciterKey = reciterKey,
+                surahNumber = surahNumber,
+                ayahNumber = ayahNumber
+            )
+            if (success) {
+                val updatedKeys = _uiState.value.downloadedAyahKeys + key
+                prefs.edit().putStringSet("downloaded_ayah_keys", updatedKeys).apply()
+                _uiState.update { state ->
+                    state.copy(
+                        downloadedAyahKeys = updatedKeys,
+                        downloadingAyahKey = null,
+                        offlineStorageUsedKb = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext),
+                        syncStatusMessage = "আয়াত $surahNumber:$ayahNumber এর অডিও ডাউনলোড সম্পন্ন হয়েছে"
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        downloadingAyahKey = null,
+                        errorMessage = "আয়াতের অডিও ডাউনলোড ব্যর্থ হয়েছে"
+                    )
                 }
             }
         }

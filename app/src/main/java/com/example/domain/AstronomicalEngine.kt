@@ -1,5 +1,13 @@
 package com.example.domain
 
+import com.batoulapps.adhan.CalculationMethod as AdhanCalculationMethod
+import com.batoulapps.adhan.CalculationParameters as AdhanCalculationParameters
+import com.batoulapps.adhan.Coordinates as AdhanCoordinates
+import com.batoulapps.adhan.Madhab as AdhanMadhab
+import com.batoulapps.adhan.Prayer as AdhanPrayer
+import com.batoulapps.adhan.PrayerTimes as AdhanPrayerTimes
+import com.batoulapps.adhan.Qibla as AdhanQibla
+import com.batoulapps.adhan.data.DateComponents
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -224,54 +232,39 @@ object AstronomicalEngine {
         val lng = district.longitude
         val tzHours = 6.0 // Bangladesh Standard Time (UTC+6)
 
-        // Solar position approximations
-        val gamma = 2.0 * Math.PI / 365.0 * (dayOfYear - 1 + 0.5)
-        val eqTime = 229.18 * (
-            0.000075 +
-                0.001868 * cos(gamma) -
-                0.032077 * sin(gamma) -
-                0.014615 * cos(2 * gamma) -
-                0.040849 * sin(2 * gamma)
-            )
-        val decl = 0.006918 -
-            0.399912 * cos(gamma) +
-            0.070257 * sin(gamma) -
-            0.006758 * cos(2 * gamma) +
-            0.000907 * sin(2 * gamma) -
-            0.002697 * cos(3 * gamma) +
-            0.00148 * sin(3 * gamma)
+        // Batoul Apps Adhan engine integration
+        val coordinates = AdhanCoordinates(lat, lng)
+        val dateComponents = DateComponents(year, month, day)
 
-        val solarNoonMin = (720.0 - 4.0 * lng - eqTime + tzHours * 60.0).roundToInt()
+        val adhanParams = when (method) {
+            CalculationMethod.ISLAMIC_FOUNDATION_BD -> {
+                val p = AdhanCalculationMethod.KARACHI.parameters
+                p.fajrAngle = 18.0
+                p.ishaAngle = 18.0
+                p
+            }
+            CalculationMethod.KARACHI -> AdhanCalculationMethod.KARACHI.parameters
+            CalculationMethod.UMM_AL_QURA -> AdhanCalculationMethod.UMM_AL_QURA.parameters
+            CalculationMethod.MWL -> AdhanCalculationMethod.MUSLIM_WORLD_LEAGUE.parameters
+            CalculationMethod.ISNA -> AdhanCalculationMethod.NORTH_AMERICA.parameters
+        }
+        adhanParams.madhab = if (madhhab == Madhhab.HANAFI) AdhanMadhab.HANAFI else AdhanMadhab.SHAFI
 
-        fun hourAngleMinutes(zenithDeg: Double): Int {
-            val latRad = Math.toRadians(lat)
-            val zenRad = Math.toRadians(zenithDeg)
-            val cosHa = (cos(zenRad) / (cos(latRad) * cos(decl))) - tan(latRad) * tan(decl)
-            val clamped = cosHa.coerceIn(-0.999, 0.999)
-            val haDeg = Math.toDegrees(acos(clamped))
-            return (haDeg * 4.0).roundToInt()
+        val prayerTimes = AdhanPrayerTimes(coordinates, dateComponents, adhanParams)
+
+        fun Date?.toMinutesOfDay(fallback: Int): Int {
+            if (this == null) return fallback
+            val c = Calendar.getInstance(tz).apply { time = this@toMinutesOfDay }
+            return c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
         }
 
-        val sunriseDiff = hourAngleMinutes(90.833)
-        val fajrDiff = hourAngleMinutes(90.0 + method.fajrAngle)
-        val ishaDiff = if (method.ishaMinutesOffset > 0) {
-            sunriseDiff + method.ishaMinutesOffset
-        } else {
-            hourAngleMinutes(90.0 + method.ishaAngle)
-        }
-
-        // Asr altitude & hour angle
-        val latRad = Math.toRadians(lat)
-        val asrAltRad = atan(1.0 / (madhhab.shadowFactor + tan(abs(latRad - decl))))
-        val asrZenithDeg = 90.0 - Math.toDegrees(asrAltRad)
-        val asrDiff = hourAngleMinutes(asrZenithDeg)
-
-        val fajrStart = (solarNoonMin - fajrDiff).coerceIn(240, 360)
-        val sunriseMin = (solarNoonMin - sunriseDiff).coerceIn(330, 410)
-        val dhuhrStart = (solarNoonMin + 3).coerceIn(700, 760)
-        val asrStart = (solarNoonMin + asrDiff).coerceIn(900, 1040)
-        val maghribStart = (solarNoonMin + sunriseDiff + 2).coerceIn(1020, 1150)
-        val ishaStart = (solarNoonMin + ishaDiff).coerceIn(1100, 1240)
+        val fajrStart = prayerTimes.fajr.toMinutesOfDay(300)
+        val sunriseMin = prayerTimes.sunrise.toMinutesOfDay(370)
+        val dhuhrStart = prayerTimes.dhuhr.toMinutesOfDay(725)
+        val asrStart = prayerTimes.asr.toMinutesOfDay(940)
+        val maghribStart = prayerTimes.maghrib.toMinutesOfDay(1085)
+        val ishaStart = prayerTimes.isha.toMinutesOfDay(1195)
+        val solarNoonMin = dhuhrStart
 
         val nowHour = cal.get(Calendar.HOUR_OF_DAY)
         val nowMinute = cal.get(Calendar.MINUTE)
@@ -477,16 +470,8 @@ object AstronomicalEngine {
     }
 
     fun calculateQiblaBearing(lat: Double, lng: Double): Double {
-        val phiK = Math.toRadians(KAABA_LAT)
-        val lambdaK = Math.toRadians(KAABA_LNG)
-        val phi = Math.toRadians(lat)
-        val lambda = Math.toRadians(lng)
-        val deltaLambda = lambdaK - lambda
-
-        val y = sin(deltaLambda)
-        val x = cos(phi) * tan(phiK) - sin(phi) * cos(deltaLambda)
-        val bearing = (Math.toDegrees(atan2(y, x)) + 360.0) % 360.0
-        return (bearing * 10.0).roundToInt() / 10.0
+        val qibla = AdhanQibla(AdhanCoordinates(lat, lng))
+        return (qibla.direction * 10.0).roundToInt() / 10.0
     }
 
     fun calculateDistanceToKaabaKm(lat: Double, lng: Double): Int {

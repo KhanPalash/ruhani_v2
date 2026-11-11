@@ -32,7 +32,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Calculate
@@ -1910,9 +1912,9 @@ fun ProfileScreen(
     ) {
         item {
             SubScreenHeader(
-                titleBn = "প্রোফাইল, নিরাপত্তা, অফলাইন সিঙ্ক ও নোটিফিকেশন",
-                titleEn = "Authentication, Offline Sync & Push Alerts",
-                subtitle = "ইমেইল/পাসওয়ার্ড ও Google সাইন-ইন, অফলাইন সিঙ্ক এবং পুশ নোটিফিকেশন",
+                titleBn = "প্রোফাইল ও ব্যক্তিগত পছন্দসমূহ",
+                titleEn = "Profile & Personal Preferences",
+                subtitle = "অ্যাকাউন্ট আইডি, ক্লাউড ব্যাকআপ, পুশ নোটিফিকেশন ও ডেটা প্রাইভেসী",
                 isBn = isBn,
                 onBack = onBack
             )
@@ -2634,7 +2636,9 @@ fun SettingsScreen(
     onToggleBanglaDigits: () -> Unit,
     onUpdateDistrict: (BdDistrict) -> Unit,
     onUpdateMethod: (CalculationMethod) -> Unit,
-    onUpdateMadhhab: (Madhhab) -> Unit
+    onUpdateMadhhab: (Madhhab) -> Unit,
+    onToggleTasbihVibration: () -> Unit = {},
+    onToggleTasbihSound: () -> Unit = {}
 ) {
     BackHandler { onBack() }
     val isBn = uiState.language == "bn"
@@ -2649,9 +2653,9 @@ fun SettingsScreen(
     ) {
         item {
             SubScreenHeader(
-                titleBn = "সেটিংস ও পছন্দসমূহ",
-                titleEn = "Settings & Preferences",
-                subtitle = "থিম, ভাষা, জেলা, হিসাব পদ্ধতি ও মাযহাব",
+                titleBn = "অ্যাপ সেটিংস",
+                titleEn = "App Settings",
+                subtitle = "সিস্টেম থিম, ভাষা, জেলা, হিসাব পদ্ধতি ও মাযহাব",
                 isBn = isBn,
                 onBack = onBack
             )
@@ -2834,6 +2838,99 @@ fun SettingsScreen(
                 }
             }
         }
+
+        // Tasbih Settings (Vibration & Sound Toggles)
+        item {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(imageVector = Icons.Default.TouchApp, contentDescription = null, tint = NoorMintLuminous)
+                        Text(
+                            text = if (isBn) "ডিজিটাল তাসবীহ সেটিংস (Tasbih Counter)" else "Digital Tasbih Settings",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Vibration Toggle Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Vibration,
+                                contentDescription = null,
+                                tint = if (uiState.tasbihVibrationEnabled) NoorEmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = if (isBn) "হ্যাপটিক ভাইব্রেশন" else "Haptic Vibration",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = if (isBn) "প্রতি গণনায় মৃদু কম্পন" else "Vibration feedback on tap",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = uiState.tasbihVibrationEnabled,
+                            onCheckedChange = { onToggleTasbihVibration() }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+
+                    // Sound Toggle Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.tasbihSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                                contentDescription = null,
+                                tint = if (uiState.tasbihSoundEnabled) NoorEmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = if (isBn) "ক্লিক সাউন্ড" else "Click Sound",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = if (isBn) "গণনার সময় অডিও ক্লিক" else "Play sound effect on tap",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = uiState.tasbihSoundEnabled,
+                            onCheckedChange = { onToggleTasbihSound() }
+                        )
+                    }
+                }
+            }
+        }
     }
 
     if (showDistrictDialog) {
@@ -2860,6 +2957,7 @@ fun OnboardingAndAuthScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var showAuthStep by remember { mutableStateOf(false) }
     var showDistrictModal by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var isRegisterTab by remember { mutableStateOf(false) }
@@ -2873,238 +2971,428 @@ fun OnboardingAndAuthScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF122C22), Color(0xFF0D1311))
+                    listOf(Color(0xFF10281F), Color(0xFF080D0B))
                 )
             )
-            .padding(20.dp),
+            .padding(horizontal = 20.dp, vertical = 24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
+        if (!showAuthStep) {
+            // STEP 1: GET STARTED
+            Column(
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.linearGradient(listOf(NoorEmeraldPrimary, NoorEmeraldDark))),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.NightlightRound,
-                    contentDescription = "Ruhani",
-                    tint = Color.White,
-                    modifier = Modifier.size(34.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // App Brand Logo
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(NoorEmeraldPrimary, NoorEmeraldDark)
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NightlightRound,
+                        contentDescription = "Ruhani",
+                        tint = Color.White,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
+
+                Text(
+                    text = "রুহানি • Ruhani",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
-            }
 
-            Text(
-                text = "রুহানি • Ruhani",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = "বাংলাদেশের মুসলিমদের জন্য পূর্ণাঙ্গ নামাজের সময়সূচী, আল-কুরআন, হাদিস ও হিজরি ক্যালেন্ডার অ্যাপ",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFA3B8B0),
-                textAlign = TextAlign.Center
-            )
+                Text(
+                    text = "বাংলাদেশের মুসলিমদের জন্য পূর্ণাঙ্গ ইসলামিক লাইফস্টাইল অ্যাপ",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFA3B8B0),
+                    textAlign = TextAlign.Center
+                )
 
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = Color(0xFF18221E),
-                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "আপনার জেলা ও মাযহাব নির্বাচন করুন",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = NoorMintLuminous
+                // Feature Highlights
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val highlights = listOf(
+                        Triple(Icons.Default.Schedule, "সঠিক নামাজের সময়সূচী ও আজান", "৬৪টি জেলা ও ইসলামিক ফাউন্ডেশন মেথড অনুযায়ী নির্ভুল সময়"),
+                        Triple(Icons.AutoMirrored.Filled.MenuBook, "আল-কুরআন (১১৪টি পূর্ণাঙ্গ সূরা)", "প্রতিটি সূরার আয়াতভিত্তিক আরবি, বাংলা অনুবাদ ও ক্বারীদের অডিও"),
+                        Triple(Icons.Default.Fingerprint, "ডিজিটাল তাসবীহ ও হিসনুল মুসলিম", "প্রাত্যহিক সকাল-সন্ধ্যার মাসনুন দু'আ ও স্মার্ট ভাইব্রেশন কাউন্টার"),
+                        Triple(Icons.Default.Explore, "সরাসরি কিবলা কম্পাস ও ক্যালেন্ডার", "রিয়েল-টাইম সেন্সর কম্পাস এবং বাংলা-ইংরেজি-হিজরি ক্যালেন্ডার")
                     )
 
-                    OutlinedButton(
-                        onClick = { showDistrictModal = true },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = NoorMintLuminous)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "জেলা: ${uiState.selectedDistrict.nameBn} (${uiState.selectedDistrict.nameEn})",
-                            color = Color.White
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Madhhab.entries.forEach { m ->
-                            val selected = uiState.madhhab == m
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (selected) NoorEmeraldPrimary else Color(0xFF1F2B26),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { onSelectMadhhab(m) }
+                    highlights.forEach { (icon, title, desc) ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF141E1A),
+                            border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.25f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = if (m == Madhhab.HANAFI) "হানাফী (Hanafi)" else "শাফেয়ী (Shafi'i)",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(NoorEmeraldPrimary.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = NoorMintLuminous,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = desc,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF8FA89E)
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Email/Password Registration & Login Card
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = Color(0xFF18221E),
-                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (!isRegisterTab) NoorEmeraldPrimary else Color(0xFF1F2B26),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { isRegisterTab = false }
+                // Quick Setup Card (District & Madhhab)
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF141E1A),
+                    border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "আপনার জেলা ও মাযহাব নির্বাচন করুন",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = NoorMintLuminous
+                        )
+
+                        OutlinedButton(
+                            onClick = { showDistrictModal = true },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFF283A32)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = NoorMintLuminous
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ইমেইল লগইন",
+                                text = "জেলা: " + uiState.selectedDistrict.nameBn + " (" + uiState.selectedDistrict.nameEn + ")",
                                 color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isRegisterTab) NoorEmeraldPrimary else Color(0xFF1F2B26),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { isRegisterTab = true }
-                        ) {
-                            Text(
-                                text = "নতুন নিবন্ধন",
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Madhhab.entries.forEach { m ->
+                                val selected = uiState.madhhab == m
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (selected) NoorEmeraldPrimary else Color(0xFF1E2C26),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onSelectMadhhab(m) }
+                                ) {
+                                    Text(
+                                        text = if (m == Madhhab.HANAFI) "হানাফী (Hanafi)" else "শাফেয়ী (Shafi'i)",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(vertical = 10.dp)
+                                    )
+                                }
+                            }
                         }
                     }
+                }
 
-                    if (isRegisterTab) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Primary GET STARTED Button
+                Button(
+                    onClick = { showAuthStep = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = NoorEmeraldPrimary),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("onboarding_get_started_btn")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "শুরু করুন • Get Started",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                Text(
+                    text = "পরবর্তী ধাপে সাইন ইন করতে পারবেন অথবা সরাসরি অতিথি হিসেবে প্রবেশ করতে পারবেন",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF758D84),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        } else {
+            // STEP 2: SIGNUP / SIGNIN (OPTIONAL) WITH GUEST AT BOTTOM
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Top Header Row with Back Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { showAuthStep = false }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "অ্যাকাউন্ট তৈরি বা লগইন",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "আমল ও বুকমার্ক ক্লাউডে সংরক্ষণ করতে সাইন ইন করুন (ঐচ্ছিক)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFA3B8B0)
+                        )
+                    }
+                }
+
+                // Email/Password Registration & Login Card
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFF141E1A),
+                    border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (!isRegisterTab) NoorEmeraldPrimary else Color(0xFF1E2C26),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { isRegisterTab = false }
+                            ) {
+                                Text(
+                                    text = "ইমেইল লগইন",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 10.dp)
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isRegisterTab) NoorEmeraldPrimary else Color(0xFF1E2C26),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { isRegisterTab = true }
+                            ) {
+                                Text(
+                                    text = "নতুন নিবন্ধন",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 10.dp)
+                                )
+                            }
+                        }
+
+                        if (isRegisterTab) {
+                            OutlinedTextField(
+                                value = fullName,
+                                onValueChange = { fullName = it },
+                                label = { Text("আপনার নাম") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                         OutlinedTextField(
-                            value = fullName,
-                            onValueChange = { fullName = it },
-                            label = { Text("আপনার নাম") },
+                            value = email,
+                            onValueChange = { email = it },
+                            label = { Text("ইমেইল (Email)") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-                    }
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("ইমেইল (Email)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)") },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                    Button(
-                        onClick = {
-                            if (isRegisterTab) {
-                                onRegisterEmailPassword(fullName, email, password, consentChecked)
-                            } else {
-                                onLoginEmailPassword(email, password)
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = NoorEmeraldPrimary),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        Button(
+                            onClick = {
+                                if (isRegisterTab) {
+                                    onRegisterEmailPassword(fullName, email, password, consentChecked)
+                                } else {
+                                    onLoginEmailPassword(email, password)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = NoorEmeraldPrimary),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Text(
+                                text = if (isRegisterTab) "ইমেইল দিয়ে নিবন্ধন করুন" else "ইমেইল দিয়ে লগইন করুন",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // Google Sign-In Button
+                Button(
+                    onClick = {
+                        errorMsg = null
+                        scope.launch {
+                            GoogleAuthHelper.onGoogleSignInClicked(
+                                context = context,
+                                onSuccess = { onCompleteOnboarding(false) },
+                                onError = { err -> errorMsg = err }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E2C26)),
+                    border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("onboarding_google_sign_in_btn")
+                ) {
+                    Text(
+                        text = "Google দিয়ে সাইন ইন করুন (Cloud Backup)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                // Divider: অথবা
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFF283A32))
+                    Text(
+                        text = " অথবা • OR ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF8FA89E),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFF283A32))
+                }
+
+                // BOTTOM AS A GUEST OPTION (Prominent Outlined)
+                OutlinedButton(
+                    onClick = { onCompleteOnboarding(true) },
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.5.dp, NoorMintLuminous),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("onboarding_guest_continue_btn")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.PersonOutline,
+                            contentDescription = null,
+                            tint = NoorMintLuminous
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isRegisterTab) "ইমেইল দিয়ে নিবন্ধন করুন" else "ইমেইল দিয়ে লগইন করুন",
-                            color = Color.White,
+                            text = "সাইন ইন ছাড়াই অতিথি হিসেবে শুরু করুন (Continue as Guest)",
+                            color = NoorMintLuminous,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-            }
 
-            // Primary Google Sign-In Button
-            Button(
-                onClick = {
-                    errorMsg = null
-                    scope.launch {
-                        GoogleAuthHelper.onGoogleSignInClicked(
-                            context = context,
-                            onSuccess = { onCompleteOnboarding(false) },
-                            onError = { err -> errorMsg = err }
-                        )
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = NoorEmeraldPrimary),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .testTag("onboarding_google_sign_in_btn")
-            ) {
                 Text(
-                    text = "Google দিয়ে সাইন ইন করুন (Cloud Backup)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-
-            // Secondary Guest Mode Button
-            OutlinedButton(
-                onClick = { onCompleteOnboarding(true) },
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, NoorMintLuminous.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp)
-                    .testTag("onboarding_guest_continue_btn")
-            ) {
-                Text(
-                    text = "সাইন ইন ছাড়াই শুরু করুন (Continue as Guest)",
-                    color = NoorMintLuminous,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            if (errorMsg != null || uiState.errorMessage != null) {
-                Text(
-                    text = errorMsg ?: uiState.errorMessage ?: "",
+                    text = "কোনো অ্যাকাউন্ট বা পাসওয়ার্ড ছাড়াই অ্যাপের সকল ফিচার সম্পূর্ণ বিনামূল্যে ব্যবহার করতে পারবেন",
                     style = MaterialTheme.typography.labelSmall,
-                    color = NoorRedAlert,
+                    color = Color(0xFF758D84),
                     textAlign = TextAlign.Center
                 )
+
+                if (errorMsg != null || uiState.errorMessage != null) {
+                    Text(
+                        text = errorMsg ?: uiState.errorMessage ?: "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NoorRedAlert,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
     }

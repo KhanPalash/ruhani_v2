@@ -472,6 +472,36 @@ object OfflineContentAndSyncManager {
         return f.exists() && f.length() > 256L
     }
 
+    suspend fun downloadAyahAudioForOffline(
+        context: Context,
+        reciterKey: String,
+        surahNumber: Int,
+        ayahNumber: Int
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val targetFile = getOfflineAudioFile(context, reciterKey, surahNumber, ayahNumber)
+            val code = String.format(Locale.US, "%03d%03d", surahNumber, ayahNumber)
+            val reciterFolder = when (reciterKey) {
+                "2" -> "Abu_Bakr_Ash-Shaatree_128kbps"
+                "3" -> "Nasser_Alqatami_128kbps"
+                "4" -> "Yasser_Ad-Dussary_128kbps"
+                "5" -> "Hani_Rifai_192kbps"
+                else -> "Alafasy_128kbps"
+            }
+            val primaryUrl = "https://everyayah.com/data/$reciterFolder/$code.mp3"
+            val backupUrl = "https://the-quran-project.github.io/Quran-Audio/Data/$reciterKey/${surahNumber}_${ayahNumber}.mp3"
+
+            val bytes = downloadBinaryOrCreateOfflineHeader(primaryUrl, targetFile)
+            if (bytes > 500 && targetFile.length() > 500L) {
+                return@withContext true
+            }
+            val fallbackBytes = downloadBinaryOrCreateOfflineHeader(backupUrl, targetFile)
+            fallbackBytes > 0 && targetFile.exists()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     suspend fun downloadSurahForOffline(
         context: Context,
         surah: QuranSurah,

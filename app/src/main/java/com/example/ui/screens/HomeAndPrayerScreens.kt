@@ -153,14 +153,34 @@ fun RuhaniTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Brand Identity + District Selector Pill
+                // Left: Profile Avatar + Brand Identity + District Selector Pill
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    // Profile Avatar on left of header
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(SignalRed)
+                            .border(1.5.dp, PureWhite.copy(alpha = 0.7f), CircleShape)
+                            .testTag("top_profile_button")
+                            .clickable { onOpenProfile() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val initials = uiState.displayName.trim().take(2).uppercase()
+                        Text(
+                            text = initials.ifEmpty { "R" },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = PureWhite
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 Brush.linearGradient(
@@ -228,46 +248,22 @@ fun RuhaniTopBar(
                     }
                 }
 
-                // Right Actions: Settings + Profile Avatar
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Right Action: Settings only
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, EmeraldPrimary.copy(alpha = 0.35f), CircleShape)
+                        .testTag("top_settings_button")
                 ) {
-                    IconButton(
-                        onClick = onOpenSettings,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .border(1.dp, EmeraldPrimary.copy(alpha = 0.35f), CircleShape)
-                            .testTag("top_settings_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = EmeraldPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(SignalRed)
-                            .border(1.5.dp, PureWhite.copy(alpha = 0.7f), CircleShape)
-                            .testTag("top_profile_button")
-                            .clickable { onOpenProfile() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val initials = uiState.displayName.trim().take(2).uppercase()
-                        Text(
-                            text = initials.ifEmpty { "R" },
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = PureWhite
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
             HorizontalDivider(color = EmeraldPrimary.copy(alpha = 0.3f))

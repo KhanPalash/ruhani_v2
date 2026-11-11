@@ -8,16 +8,7 @@ import kotlin.math.sin
 
 // --- BdDistrict Qibla & Distance Extensions ---
 val BdDistrict.qiblaBearingDeg: Double
-    get() {
-        val kaabaLat = Math.toRadians(21.422487)
-        val kaabaLng = Math.toRadians(39.826206)
-        val latRad = Math.toRadians(latitude)
-        val lngRad = Math.toRadians(longitude)
-        val dLng = kaabaLng - lngRad
-        val y = sin(dLng) * cos(kaabaLat)
-        val x = cos(latRad) * sin(kaabaLat) - sin(latRad) * cos(kaabaLat) * cos(dLng)
-        return (Math.toDegrees(atan2(y, x)) + 360.0) % 360.0
-    }
+    get() = AstronomicalEngine.calculateQiblaBearing(latitude, longitude)
 
 val BdDistrict.distanceToMakkahKm: Int
     get() {
@@ -159,12 +150,36 @@ fun QuranCatalog.findSurah(surahNumber: Int): QuranSurah =
 
 val QuranCatalog.juzSummaryList: List<Triple<Int, String, String>>
     get() = listOf(
-        Triple(1, "পারা ১ • আলিফ-লাম-মীম", "Surah Al-Fatihah 1:1 – Al-Baqarah 2:141"),
-        Triple(2, "পারা ২ • সাইয়াকুলু", "Surah Al-Baqarah 2:142 – 2:252"),
-        Triple(3, "পারা ৩ • তিলকার রুসুল", "Surah Al-Baqarah 2:253 – Ali 'Imran 3:92"),
-        Triple(23, "পারা ২৩ • ওয়ামা লিয়া", "Surah Ya-Sin 36:28 – Az-Zumar 39:31"),
-        Triple(29, "পারা ২৯ • তাবারাকাল্লাযী", "Surah Al-Mulk 67:1 – Al-Mursalat 77:50"),
-        Triple(30, "পারা ৩০ • আম্মা ইয়াতাসাআলুন (আমপারা)", "Surah An-Naba 78:1 – An-Nas 114:6")
+        Triple(1, "পারা ১ • আলিফ-লাম-মীম", "Al-Fatihah 1:1 – Al-Baqarah 2:141"),
+        Triple(2, "পারা ২ • সাইয়াকুলু", "Al-Baqarah 2:142 – 2:252"),
+        Triple(3, "পারা ৩ • তিলকার রুসুল", "Al-Baqarah 2:253 – Ali Imran 3:92"),
+        Triple(4, "পারা ৪ • লান তানালু", "Ali Imran 3:93 – An-Nisa 4:23"),
+        Triple(5, "পারা ৫ • ওয়াল মুহসানাত", "An-Nisa 4:24 – 4:147"),
+        Triple(6, "পারা ৬ • লা ইয়ুহিব্বুল্লাহ", "An-Nisa 4:148 – Al-Maidah 5:81"),
+        Triple(7, "পারা ৭ • ওয়া ইযা সামিউ", "Al-Maidah 5:82 – Al-Anam 6:110"),
+        Triple(8, "পারা ৮ • ওয়া লাও আন্নানা", "Al-Anam 6:111 – Al-Araf 7:87"),
+        Triple(9, "পারা ৯ • কালাল মালাউ", "Al-Araf 7:88 – Al-Anfal 8:40"),
+        Triple(10, "পারা ১০ • ওয়া'লামু", "Al-Anfal 8:41 – At-Tawbah 9:92"),
+        Triple(11, "পারা ১১ • ইয়া'তাযিরূন", "At-Tawbah 9:93 – Hud 11:5"),
+        Triple(12, "পারা ১২ • ওয়া মা মিন দা-ব্বাহ", "Hud 11:6 – Yusuf 12:52"),
+        Triple(13, "পারা ১৩ • ওয়া মা উবাররিউ", "Yusuf 12:53 – Ibrahim 14:52"),
+        Triple(14, "পারা ১৪ • রুবামা", "Al-Hijr 15:1 – An-Nahl 16:128"),
+        Triple(15, "পারা ১৫ • সুবহানাল্লাযী", "Al-Isra 17:1 – Al-Kahf 18:74"),
+        Triple(16, "পারা ১৬ • কালা আলাম", "Al-Kahf 18:75 – Ta-Ha 20:135"),
+        Triple(17, "পারা ১৭ • ইকতরাবা", "Al-Anbiya 21:1 – Al-Hajj 22:78"),
+        Triple(18, "পারা ১৮ • কাদ আফলাহা", "Al-Muminun 23:1 – Al-Furqan 25:20"),
+        Triple(19, "পারা ১৯ • ওয়া কালাল্লাযীনা", "Al-Furqan 25:21 – An-Naml 27:55"),
+        Triple(20, "পারা ২০ • আম্মান খালাকা", "An-Naml 27:56 – Al-Ankabut 29:45"),
+        Triple(21, "পারা ২১ • উতলু মা উহিয়া", "Al-Ankabut 29:46 – Al-Ahzab 33:30"),
+        Triple(22, "পারা ২২ • ওয়া মান ইয়াকনুত", "Al-Ahzab 33:31 – Ya-Sin 36:27"),
+        Triple(23, "পারা ২৩ • ওয়ামা লিয়া", "Ya-Sin 36:28 – Az-Zumar 39:31"),
+        Triple(24, "পারা ২৪ • ফামান আজলামু", "Az-Zumar 39:32 – Fussilat 41:46"),
+        Triple(25, "পারা ২৫ • ইলাইহি ইউরাদ্দু", "Fussilat 41:47 – Al-Jathiyah 45:37"),
+        Triple(26, "পারা ২৬ • হা-মীম", "Al-Ahqaf 46:1 – Adh-Dhariyat 51:30"),
+        Triple(27, "পারা ২৭ • কালা ফামা খাতবুকুম", "Adh-Dhariyat 51:31 – Al-Hadid 57:29"),
+        Triple(28, "পারা ২৮ • কাদ সামিআল্লাহ", "Al-Mujadila 58:1 – At-Tahrim 66:12"),
+        Triple(29, "পারা ২৯ • তাবারাকাল্লাযী", "Al-Mulk 67:1 – Al-Mursalat 77:50"),
+        Triple(30, "পারা ৩০ • আম্মা ইয়াতাসাআলুন (আমপারা)", "An-Naba 78:1 – An-Nas 114:6")
     )
 
 // --- RuhaniContentCatalog Extensions ---
