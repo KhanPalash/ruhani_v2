@@ -196,7 +196,9 @@ data class RuhaniUiState(
     val isHaramainPlaying: Boolean = true,
     // Status / Sync message
     val syncStatusMessage: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    // In-app update prompt
+    val updateInfo: com.example.domain.UpdateInfo? = null
 )
 
 class RuhaniViewModel(
@@ -224,6 +226,25 @@ class RuhaniViewModel(
         observeNetworkConnectivity()
         if (authenticatedUserId != null && firestoreRepository != null) {
             observeCloudData(authenticatedUserId, firestoreRepository)
+        }
+        checkForUpdate()
+    }
+
+    fun dismissUpdateDialog() {
+        _uiState.update { it.copy(updateInfo = null) }
+    }
+
+    private fun checkForUpdate() {
+        viewModelScope.launch {
+            val currentVersion = try {
+                appContext.packageManager
+                    .getPackageInfo(appContext.packageName, 0)
+                    .versionName ?: "1.0"
+            } catch (_: Exception) { "1.0" }
+            val info = com.example.domain.UpdateChecker.checkForUpdate(currentVersion)
+            if (info != null) {
+                _uiState.update { it.copy(updateInfo = info) }
+            }
         }
     }
 

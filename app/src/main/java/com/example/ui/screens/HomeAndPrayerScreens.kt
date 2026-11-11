@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
 import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -1249,6 +1251,56 @@ fun HomeDashboardScreen(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "Open",
                         tint = NoorMintLuminous
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Powered by KhansCreations Card
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = NoorEmeraldPrimary.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.25f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                        context.startActivity(intent)
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.khanscreations_logo),
+                        contentDescription = "KhansCreations Logo",
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "KhansCreations",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = NoorMintLuminous
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Powered by KhansCreations (khanscreations.com)",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                textDecoration = TextDecoration.Underline
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = if (isBn) "ভিজিট করুন ↗" else "Visit ↗",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = NoorEmeraldPrimary
                     )
                 }
             }

@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -97,6 +98,17 @@ import com.example.ui.theme.RuhaniTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import com.example.domain.UpdateInfo
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -147,6 +159,8 @@ fun RuhaniAppRoot() {
         )
     }
 
+    var showCompanyAdPopup by remember { mutableStateOf(true) }
+
     DisposableEffect(Unit) {
         val auth = try {
             if (FirebaseApp.getApps(context).isNotEmpty()) FirebaseAuth.getInstance() else null
@@ -193,6 +207,23 @@ fun RuhaniAppRoot() {
         val uiState by ruhaniViewModel.uiState.collectAsStateWithLifecycle()
 
         RuhaniTheme(themeMode = uiState.themeMode) {
+            // Company Ad / Welcome popup shown on app launch
+            if (showCompanyAdPopup) {
+                KhansCreationsAdDialog(
+                    isBn = uiState.language == "bn",
+                    onDismiss = { showCompanyAdPopup = false }
+                )
+            } else {
+                // Show update dialog when a newer GitHub release is available
+                uiState.updateInfo?.let { update ->
+                    UpdateAvailableDialog(
+                        info = update,
+                        isBn = uiState.language == "bn",
+                        onDismiss = ruhaniViewModel::dismissUpdateDialog
+                    )
+                }
+            }
+
             if (!uiState.hasCompletedOnboarding) {
                 OnboardingAndAuthScreen(
                     uiState = uiState,
@@ -257,6 +288,9 @@ fun RuhaniAppRoot() {
                                 onSelectTab = ruhaniViewModel::selectTab
                             )
                         }
+
+                        // Persistent App Footer Branding
+                        KhansCreationsFooterBar()
                     }
                 }
             ) { innerPadding ->
@@ -680,6 +714,235 @@ fun QuranGlobalMiniPlayer(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun UpdateAvailableDialog(
+    info: UpdateInfo,
+    isBn: Boolean,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isBn) "নতুন আপডেট পাওয়া গেছে" else "Update Available",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = if (isBn)
+                        "Version ${info.latestVersion} এখন পাওয়া যাচ্ছে। নতুন ফিচার ও বাগ ফিক্স পেতে আপডেট করুন।"
+                    else
+                        "Version ${info.latestVersion} is now available. Update to get the latest features and fixes.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (info.releaseNotes.isNotBlank()) {
+                    Text(
+                        text = info.releaseNotes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Powered by KhansCreations footer inside popup
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                            context.startActivity(intent)
+                        }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Powered by KhansCreations",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.releaseUrl))
+                context.startActivity(intent)
+                onDismiss()
+            }) {
+                Text(
+                    text = if (isBn) "আপডেট করুন" else "Update Now",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = if (isBn) "পরে করব" else "Later",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun KhansCreationsAdDialog(
+    isBn: Boolean,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // KhansCreations Official Logo
+                Image(
+                    painter = painterResource(id = R.drawable.khanscreations_logo),
+                    contentDescription = "KhansCreations Logo",
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = EmeraldPrimary.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        text = "KhansCreations",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = EmeraldPrimary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (isBn) "ডিজিটাল উদ্ভাবন ও সফটওয়্যার সমাধান" else "Technology & Software Innovations",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (isBn)
+                        "রুহানি (Ruhani) অ্যাপটি KhansCreations-এর উদ্যোগে নির্মিত একটি পূর্ণাঙ্গ ইসলামিক লাইফস্টাইল ও ইবাদত সহায়ক অ্যাপ্লিকেশন।\n\nআমরা আধুনিক মোবাইল অ্যাপ, প্রিমিয়াম ওয়েবসাইট ও কাস্টম সফটওয়্যার তৈরিতে নিবেদিত। যেকোনো তথ্য বা সফটওয়্যার সেবার জন্য ভিজিট করুন আমাদের অফিসিয়াল ওয়েবসাইট।"
+                    else
+                        "Ruhani is proudly crafted & powered by KhansCreations.\n\nWe build world-class mobile apps, responsive web platforms, and custom software systems. Discover our work or partner with us for your next digital product.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                // Clickable website banner link
+                Row(
+                    modifier = Modifier
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                            context.startActivity(intent)
+                        }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Powered by KhansCreations (khanscreations.com)",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary,
+                            textDecoration = TextDecoration.Underline
+                        ),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                    context.startActivity(intent)
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
+            ) {
+                Text(
+                    text = if (isBn) "ওয়েবসাইট ভিজিট করুন" else "Visit Website",
+                    fontWeight = FontWeight.Bold,
+                    color = PureWhite
+                )
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text(
+                    text = if (isBn) "অ্যাপে প্রবেশ করুন" else "Continue to App",
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun KhansCreationsFooterBar() {
+    val context = LocalContext.current
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                    context.startActivity(intent)
+                }
+                .padding(vertical = 4.dp, horizontal = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Powered by KhansCreations (https://khanscreations.com)",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = EmeraldPrimary,
+                    textDecoration = TextDecoration.Underline
+                ),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
