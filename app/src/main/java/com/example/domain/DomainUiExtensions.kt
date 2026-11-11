@@ -142,8 +142,8 @@ val QuranSurah.juzNumber: Int get() = juzStart
 val QuranSurah.arabicTitle: String get() = nameArabic
 val QuranSurah.revelationTypeBn: String get() = revelationBn
 
-val WordByWordItem.bangla: String get() = meaningBn
-val WordByWordItem.english: String get() = meaningEn
+val WordByWordItem.bangla: String get() = translationBn
+val WordByWordItem.english: String get() = translationEn
 
 fun QuranCatalog.findSurah(surahNumber: Int): QuranSurah =
     surahs.firstOrNull { it.number == surahNumber } ?: surahs.first()
