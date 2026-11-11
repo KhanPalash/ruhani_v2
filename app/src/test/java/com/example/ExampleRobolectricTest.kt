@@ -83,9 +83,17 @@ class ExampleRobolectricTest {
     @Test
     fun categorizedDuas_opensAndDisplaysSearchBarAndCategories() {
         composeTestRule.onNodeWithTag("home_dashboard_list")
-            .performScrollToNode(hasTestTag("home_categorized_duas_spotlight"))
-        composeTestRule.onNodeWithTag("home_categorized_duas_spotlight").performClick()
+            .performScrollToNode(hasTestTag("feature_card_dua_dhikr"))
+        composeTestRule.onNodeWithTag("feature_card_dua_dhikr").performClick()
         composeTestRule.onNodeWithTag("dua_dhikr_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("dua_search_bar").assertIsDisplayed()
+    }
+
+    @Test
+    fun moreServicesButton_navigatesToMoreHub() {
+        composeTestRule.onNodeWithTag("home_dashboard_list")
+            .performScrollToNode(hasTestTag("home_more_services_button"))
+        composeTestRule.onNodeWithTag("home_more_services_button").performClick()
+        composeTestRule.onNodeWithTag("more_hub_list").assertIsDisplayed()
     }
 }

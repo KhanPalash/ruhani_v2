@@ -112,6 +112,9 @@ import com.example.data.remote.AlAdhanMonthlyCalendar
 import com.example.data.remote.AlAdhanQiblaResult
 import com.example.data.remote.AlAdhanQiblaService
 import com.example.data.remote.HijriCalendarMethod
+import com.example.data.remote.HisnulCategory
+import com.example.data.remote.HisnulDuaApiService
+import com.example.data.remote.HisnulDuaPage
 import com.example.domain.*
 import com.example.ui.RuhaniUiState
 import com.example.ui.theme.AmiriFontFamily
@@ -508,7 +511,55 @@ fun DuaAndDhikrScreen(
     var selectedOccasionKeyword by remember { mutableStateOf("") }
     val localFallbackCounter = remember { mutableStateMapOf<String, Int>() }
 
-    val filteredDuas = remember(selectedCategory, searchQuery, selectedOccasionKeyword, uiState.favoriteDuaIds) {
+    // Live Hisnul Muslim Dua API state (https://dua-api.hisnul.workers.dev)
+    val scope = rememberCoroutineScope()
+    var useApi by remember { mutableStateOf(false) }
+    var apiCategories by remember { mutableStateOf<List<HisnulCategory>>(emptyList()) }
+    var apiCategory by remember { mutableStateOf<HisnulCategory?>(null) }
+    var apiDuas by remember { mutableStateOf<List<DuaItem>>(emptyList()) }
+    var apiPage by remember { mutableIntStateOf(1) }
+    var apiTotal by remember { mutableIntStateOf(0) }
+    var apiHasMore by remember { mutableStateOf(false) }
+    var apiLoading by remember { mutableStateOf(false) }
+    var apiError by remember { mutableStateOf<String?>(null) }
+
+    suspend fun loadApiPage(page: Int) {
+        apiLoading = true
+        apiError = null
+        try {
+            val query = searchQuery.trim()
+            if (apiCategories.isEmpty()) {
+                apiCategories = HisnulDuaApiService.fetchCategories()
+            }
+            val result = if (query.isNotEmpty()) {
+                HisnulDuaApiService.search(query, page)
+            } else {
+                val cat = apiCategory ?: apiCategories.firstOrNull()?.also { apiCategory = it }
+                if (cat == null) HisnulDuaPage(emptyList(), false, 0)
+                else HisnulDuaApiService.fetchCategoryDuas(cat.id, cat.name, page)
+            }
+            apiDuas = if (page == 1) result.items else apiDuas + result.items
+            apiPage = page
+            apiHasMore = result.hasMore
+            apiTotal = result.total
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            apiError = e.localizedMessage ?: "Dua API unavailable"
+        } finally {
+            apiLoading = false
+        }
+    }
+
+    LaunchedEffect(useApi, apiCategory, searchQuery) {
+        if (!useApi) return@LaunchedEffect
+        if (searchQuery.isNotBlank()) kotlinx.coroutines.delay(450)
+        apiDuas = emptyList()
+        apiHasMore = false
+        loadApiPage(1)
+    }
+
+    val localFilteredDuas = remember(selectedCategory, searchQuery, selectedOccasionKeyword, uiState.favoriteDuaIds) {
         allDuas.filter { dua ->
             val matchesCategory = when (selectedCategory) {
                 "সকল দোয়া" -> true
@@ -539,6 +590,8 @@ fun DuaAndDhikrScreen(
             matchesCategory && matchesSearch && matchesOccasionChip
         }
     }
+
+    val filteredDuas = if (useApi) apiDuas else localFilteredDuas
 
     val groupedDuas = remember(filteredDuas) {
         filteredDuas.groupBy { it.categoryBn to it.categoryEn }
@@ -666,6 +719,42 @@ fun DuaAndDhikrScreen(
             )
         }
 
+        // Source toggle: offline catalog vs live Hisnul Muslim API
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    false to (if (isBn) "অফলাইন সংকলন" else "Offline Collection"),
+                    true to (if (isBn) "হিসনুল মুসলিম (লাইভ)" else "Hisnul Muslim (Live)")
+                ).forEach { (apiMode, label) ->
+                    val active = useApi == apiMode
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (active) EmeraldPrimary else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, if (active) EmeraldPrimary else EmeraldPrimary.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { useApi = apiMode }
+                            .testTag(if (apiMode) "dua_source_api" else "dua_source_offline")
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = if (active) PureWhite else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 9.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!useApi) {
         // Occasion Quick Filter Pills
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -783,8 +872,137 @@ fun DuaAndDhikrScreen(
                 }
             }
         }
+        } else {
+            // Live Hisnul Muslim API categories
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isBn) "হিসনুল মুসলিম ক্যাটাগরি (লাইভ API):" else "Hisnul Muslim Categories (Live API):",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = if (isBn) "প্রাপ্ত দোয়া: ${apiDuas.size}/${apiTotal}টি" else "Loaded: ${apiDuas.size}/$apiTotal",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        apiCategories.forEach { cat ->
+                            val selected = searchQuery.isBlank() && cat.id == apiCategory?.id
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (selected) EmeraldPrimary else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (selected) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+                                ),
+                                modifier = Modifier
+                                    .clickable {
+                                        searchQuery = ""
+                                        apiCategory = cat
+                                    }
+                                    .testTag("dua_api_category_${cat.id}")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = cat.name,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (selected) PureWhite else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (selected) PureBlack.copy(alpha = 0.28f) else EmeraldPrimary.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = cat.duaCount.toString(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (selected) PureWhite else EmeraldPrimary,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-        if (filteredDuas.isEmpty()) {
+        if (useApi && apiLoading && apiDuas.isEmpty()) {
+            item(key = "api_loading") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = EmeraldPrimary)
+                }
+            }
+        }
+
+        if (useApi && apiError != null) {
+            item(key = "api_error") {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, SignalRed.copy(alpha = 0.45f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("dua_api_error_card")
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = if (isBn) "দোয়া API-তে সংযোগ করা যায়নি" else "Could not reach the Dua API",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SignalRed
+                        )
+                        Text(
+                            text = if (isBn) "ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন, অথবা অফলাইন সংকলন ব্যবহার করুন।"
+                            else "Check your connection and retry, or switch to the offline collection.",
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = { scope.launch { loadApiPage(if (apiDuas.isEmpty()) 1 else apiPage + 1) } },
+                            colors = ButtonDefaults.buttonColors(containerColor = SignalRed, contentColor = PureWhite),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Text(text = if (isBn) "আবার চেষ্টা করুন" else "Retry", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (filteredDuas.isEmpty() && !(useApi && (apiLoading || apiError != null))) {
             item {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
@@ -1116,6 +1334,36 @@ fun DuaAndDhikrScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        if (useApi && apiHasMore && apiDuas.isNotEmpty()) {
+            item(key = "api_load_more") {
+                OutlinedButton(
+                    onClick = {
+                        scope.launch { loadApiPage(apiPage + 1) }
+                    },
+                    enabled = !apiLoading,
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(1.dp, EmeraldPrimary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("dua_api_load_more_btn")
+                ) {
+                    if (apiLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = EmeraldPrimary
+                        )
+                    } else {
+                        Text(
+                            text = if (isBn) "আরও দোয়া লোড করুন" else "Load more duas",
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary
+                        )
                     }
                 }
             }

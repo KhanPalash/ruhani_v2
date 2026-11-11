@@ -5,20 +5,27 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -27,12 +34,17 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -400,50 +412,103 @@ fun RuhaniAppRoot() {
     }
 }
 
+private data class RuhaniNavItem(
+    val tab: MainTab,
+    val label: String,
+    val iconRes: Int
+)
+
 @Composable
 private fun RuhaniBottomNavigationBar(
     currentTab: MainTab,
     isBn: Boolean,
     onSelectTab: (MainTab) -> Unit
 ) {
+    // Tab order matching user reference design: Home -> Prayer -> Quran -> More
     val navItems = listOf(
-        Triple(MainTab.HOME, if (isBn) "হোম" else "Home", Icons.Default.Home),
-        Triple(MainTab.QURAN, if (isBn) "কুরআন" else "Quran", Icons.AutoMirrored.Filled.MenuBook),
-        Triple(MainTab.PRAYER, if (isBn) "নামাজ" else "Prayer", Icons.Default.Schedule),
-        Triple(MainTab.MORE, if (isBn) "আরও" else "More", Icons.Default.GridView)
+        RuhaniNavItem(MainTab.HOME, if (isBn) "হোম" else "Home", R.drawable.ic_nav_home),
+        RuhaniNavItem(MainTab.PRAYER, if (isBn) "নামাজ" else "Prayer", R.drawable.ic_nav_prayer),
+        RuhaniNavItem(MainTab.QURAN, if (isBn) "কুরআন" else "Quran", R.drawable.ic_nav_quran),
+        RuhaniNavItem(MainTab.MORE, if (isBn) "আরও" else "More", R.drawable.ic_nav_more)
     )
 
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+
+    // Colors matching user reference image:
+    // Selected capsule: soft sage/mint pill (#DCEBE1 in light mode, deep emerald tint in dark mode)
+    // Selected text & icon: deep sage green (#2C4C3B in light mode, luminous mint in dark mode)
+    // Unselected text & icon: neutral slate/sage (#728078 in light mode, muted mint in dark mode)
+    val selectedPillColor = if (isDark) Color(0xFF133628) else Color(0xFFDCEBE1)
+    val selectedContentColor = if (isDark) NoorMintLuminous else Color(0xFF2C4C3B)
+    val unselectedContentColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f) else Color(0xFF728078)
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp,
+        shadowElevation = 8.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        navItems.forEach { (tab, label, icon) ->
-            val selected = currentTab == tab
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onSelectTab(tab) },
-                icon = {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label
-                    )
-                },
-                label = {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White,
-                    selectedTextColor = NoorEmeraldPrimary,
-                    indicatorColor = NoorEmeraldPrimary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(64.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            navItems.forEach { item ->
+                val selected = currentTab == item.tab
+                val animatedContentColor by animateColorAsState(
+                    targetValue = if (selected) selectedContentColor else unselectedContentColor,
+                    label = "nav_content_color"
+                )
+                val animatedPillColor by animateColorAsState(
+                    targetValue = if (selected) selectedPillColor else Color.Transparent,
+                    label = "nav_pill_color"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(animatedPillColor)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { onSelectTab(item.tab) }
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .testTag("nav_tab_${item.tab.name.lowercase()}"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = item.iconRes),
+                                contentDescription = item.label,
+                                tint = animatedContentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = item.label,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = animatedContentColor
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

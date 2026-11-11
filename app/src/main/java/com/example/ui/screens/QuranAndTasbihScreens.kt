@@ -119,13 +119,13 @@ fun QuranBrowserScreen(
 ) {
     val isBn = uiState.language == "bn"
     var searchQuery by remember { mutableStateOf("") }
-    var selectedFilterTab by remember { mutableIntStateOf(0) } // 0=Surahs, 1=Juz, 2=Bookmarks, 3=Offline
+    var selectedFilterTab by remember { mutableIntStateOf(0) } // 0=All, 1=Makki, 2=Madani, 3=Juz
 
-    val filteredSurahs = remember(searchQuery, selectedFilterTab, uiState.downloadedSurahIds) {
-        val base = if (selectedFilterTab == 3) {
-            QuranCatalog.surahs.filter { it.number in uiState.downloadedSurahIds }
-        } else {
-            QuranCatalog.surahs
+    val filteredSurahs = remember(searchQuery, selectedFilterTab) {
+        val base = when (selectedFilterTab) {
+            1 -> QuranCatalog.surahs.filter { it.revelationType.equals("Makki", ignoreCase = true) }
+            2 -> QuranCatalog.surahs.filter { it.revelationType.equals("Madani", ignoreCase = true) }
+            else -> QuranCatalog.surahs
         }
         if (searchQuery.isBlank()) base
         else base.filter {
@@ -147,7 +147,7 @@ fun QuranBrowserScreen(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Resume Last Read Banner
+        // 1. Resume Last Read Banner (Design match 03_quran)
         item {
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -176,7 +176,7 @@ fun QuranBrowserScreen(
                             color = NoorEmeraldPrimary.copy(alpha = 0.22f)
                         ) {
                             Text(
-                                text = if (isBn) "সর্বশেষ পঠিত • LAST READ" else "LAST READ • সর্বশেষ পঠিত",
+                                text = if (isBn) "পড়া চালিয়ে যান • Continue Reading" else "Continue Reading",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = NoorMintLuminous,
@@ -185,20 +185,23 @@ fun QuranBrowserScreen(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "${lastReadSurah.nameBn} (${lastReadSurah.nameEn})",
+                            text = lastReadSurah.nameEn,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Text(
-                            text = if (isBn) "আয়াত নং ${uiState.lastReadAyahNumber} • পারা ${lastReadSurah.juzNumber}"
+                            text = if (isBn) "${lastReadSurah.nameBn} • আয়াত ${uiState.lastReadAyahNumber}"
                             else "Ayah ${uiState.lastReadAyahNumber} • Juz ${lastReadSurah.juzNumber}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFA3B8B0)
                         )
                     }
 
-                    Column(horizontalAlignment = Alignment.End) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Text(
                             text = lastReadSurah.arabicTitle,
                             style = MaterialTheme.typography.headlineSmall.copy(
@@ -206,17 +209,18 @@ fun QuranBrowserScreen(
                                 color = NoorMintLuminous
                             )
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = NoorEmeraldPrimary
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(NoorEmeraldPrimary),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = if (isBn) "পড়ুন →" else "Continue →",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Continue",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -224,15 +228,15 @@ fun QuranBrowserScreen(
             }
         }
 
-        // 2. Search Input
+        // 2. Search Input (Design match 03_quran)
         item {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = {
                     Text(
-                        if (isBn) "সূরার নাম বা নম্বর দিয়ে খুঁজুন (যেমন: ইয়াসিন, 36)..."
-                        else "Search Surah by name or number (e.g. Ya-Sin, 36)..."
+                        if (isBn) "সূরা বা আয়াত অনুসন্ধান করুন…"
+                        else "Search Surah or Ayah…"
                     )
                 },
                 leadingIcon = {
@@ -250,12 +254,12 @@ fun QuranBrowserScreen(
             )
         }
 
-        // 3. Filter Tabs (Surahs, Juz, Bookmarks, Offline)
+        // 3. Filter Tabs: All, Makki, Madani, Juz (Design match 03_quran)
         item {
             val tabs = if (isBn) {
-                listOf("সূরা সমূহ", "পারা (Juz)", "বুকমার্ক (${uiState.bookmarks.size})", "অফলাইন (${uiState.downloadedSurahIds.size})")
+                listOf("সকল", "মাক্কী", "মাদানী", "পারা (Juz)")
             } else {
-                listOf("Surahs", "Juz (Para)", "Bookmarks (${uiState.bookmarks.size})", "Offline (${uiState.downloadedSurahIds.size})")
+                listOf("All", "Makki", "Madani", "Juz")
             }
             Row(
                 modifier = Modifier
@@ -290,7 +294,7 @@ fun QuranBrowserScreen(
 
         // 4. Content based on selected tab
         when (selectedFilterTab) {
-            1 -> {
+            3 -> {
                 // Juz / Para List
                 items(QuranCatalog.juzSummaryList) { (juzNum, titleBn, rangeEn) ->
                     Surface(
@@ -351,96 +355,9 @@ fun QuranBrowserScreen(
                 }
             }
 
-            2 -> {
-                // Bookmarks List
-                if (uiState.bookmarks.isEmpty()) {
-                    item {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.BookmarkBorder,
-                                    contentDescription = null,
-                                    tint = NoorMintLuminous,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = if (isBn) "কোনো বুকমার্ক পাওয়া যায়নি" else "No Bookmarked Ayahs Yet",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (isBn) "সূরা পড়ার সময় বুকমার্ক আইকনে ট্যাপ করে আয়াত সংরক্ষণ করুন।"
-                                    else "Tap the bookmark icon on any Ayah while reading to save it to cloud & device.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    items(uiState.bookmarks) { bm ->
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.4f)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onOpenSurah(QuranCatalog.findSurah(bm.surahNumber.toInt()))
-                                }
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "${bm.surahNameBn} (${bm.surahNameEn}) • ${bm.surahNumber}:${bm.ayahNumber}",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = NoorMintLuminous
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.Bookmark,
-                                        contentDescription = "Bookmarked",
-                                        tint = NoorGoldAccent,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = bm.arabicPreview,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = AmiriFontFamily),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.End
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = bm.translationPreview,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             else -> {
-                // Surah Cards
+                // Surah Cards: All, Makki, Madani (Design match 03_quran)
                 items(filteredSurahs) { surah ->
-                    val isDownloaded = surah.number in uiState.downloadedSurahIds
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surface,
@@ -464,14 +381,14 @@ fun QuranBrowserScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(42.dp)
+                                        .size(40.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(NoorEmeraldPrimary.copy(alpha = 0.15f))
                                         .border(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = surah.number.toString().padStart(2, '0'),
+                                        text = surah.number.toString(),
                                         style = MaterialTheme.typography.labelLarge.copy(
                                             fontFamily = SpaceGroteskFontFamily,
                                             fontWeight = FontWeight.Bold
@@ -482,14 +399,14 @@ fun QuranBrowserScreen(
 
                                 Column {
                                     Text(
-                                        text = "${surah.nameBn} • ${surah.nameEn}",
+                                        text = surah.nameEn,
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = if (isBn) "${surah.meaningBn} • ${surah.revelationTypeBn} • ${surah.totalAyahs} আয়াত"
-                                        else "${surah.meaningEn} • ${surah.revelationType} • ${surah.totalAyahs} Ayahs",
+                                        text = if (isBn) "${surah.nameBn} • ${surah.totalAyahs} আয়াত"
+                                        else "${surah.meaningEn} · ${surah.totalAyahs}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -501,20 +418,24 @@ fun QuranBrowserScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = surah.arabicTitle,
+                                    text = surah.nameArabic,
                                     style = MaterialTheme.typography.titleLarge.copy(
                                         fontFamily = AmiriFontFamily,
                                         color = NoorMintLuminous
                                     )
                                 )
                                 IconButton(
-                                    onClick = { onToggleOfflineDownload(surah.number) },
-                                    modifier = Modifier.size(34.dp)
+                                    onClick = { onOpenSurah(surah) },
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .background(NoorEmeraldPrimary.copy(alpha = 0.14f))
+                                        .testTag("surah_play_${surah.number}")
                                 ) {
                                     Icon(
-                                        imageVector = if (isDownloaded) Icons.Default.CloudDone else Icons.Default.CloudDownload,
-                                        contentDescription = "Offline Audio & Tafsir",
-                                        tint = if (isDownloaded) NoorMintLuminous else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Play Surah",
+                                        tint = NoorMintLuminous,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1609,12 +1530,12 @@ fun DigitalTasbihScreen(
                     }
                     Column {
                         Text(
-                            text = if (isBn) "ডিজিটাল তাসবীহ কাউন্টার" else "Digital Tasbih Counter",
+                            text = if (isBn) "ডিজিটাল তাসবীহ" else "Digital Tasbih",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.ExtraBold
                         )
                         Text(
-                            text = if (isBn) "লোকাল মেমরিতে স্বয়ংক্রিয় সংরক্ষিত • Saved Locally" else "Daily Zikr Tracker • Saved Locally",
+                            text = if (isBn) "ডিজিটাল তাসবীহ • লোকাল সেভ" else "Digital Tasbih • Local Save",
                             style = MaterialTheme.typography.labelSmall,
                             color = EmeraldPrimary
                         )
@@ -1947,6 +1868,14 @@ fun DigitalTasbihScreen(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
+                        val todayTotal = remember(uiState.tasbihCurrentCount, uiState.tasbihCountsByPreset) {
+                            uiState.tasbihCountsByPreset.values.sum() + uiState.tasbihCurrentCount
+                        }
+                        Text(
+                            text = if (isBn) "আজকের মোট: $todayTotal" else "Today Total: $todayTotal",
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(50),
@@ -2147,6 +2076,73 @@ fun DigitalTasbihScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = SignalRed,
                                 modifier = Modifier.padding(bottom = 3.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 7. Vibration & Sound Status Toggles (Design Match 06_tasbih)
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isBn) "ভাইব্রেশন (Vibration)" else "Vibration",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (uiState.tasbihVibrationEnabled) EmeraldPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(1.dp, if (uiState.tasbihVibrationEnabled) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                            modifier = Modifier.clickable { onToggleVibration() }
+                        ) {
+                            Text(
+                                text = if (uiState.tasbihVibrationEnabled) "On" else "Off",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.tasbihVibrationEnabled) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isBn) "শব্দ (Sound)" else "Sound",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (uiState.tasbihSoundEnabled) EmeraldPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(1.dp, if (uiState.tasbihSoundEnabled) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                            modifier = Modifier.clickable { onToggleSound() }
+                        ) {
+                            Text(
+                                text = if (uiState.tasbihSoundEnabled) "On" else "Off",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.tasbihSoundEnabled) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                             )
                         }
                     }

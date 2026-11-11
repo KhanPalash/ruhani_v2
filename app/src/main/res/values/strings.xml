@@ -12,4 +12,5 @@
     <string name="nav_quran_en">Quran</string>
     <string name="nav_prayer_en">Prayer</string>
     <string name="nav_more_en">More</string>
+    <string name="default_web_client_id" translatable="false">mock_default_web_client_id</string>
 </resources>

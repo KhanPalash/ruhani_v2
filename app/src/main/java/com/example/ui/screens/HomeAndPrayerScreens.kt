@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.LocationOn
@@ -141,7 +144,7 @@ fun RuhaniTopBar(
         tonalElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column {
+        Column(modifier = Modifier.statusBarsPadding()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -916,256 +919,7 @@ fun HomeDashboardScreen(
             }
         }
 
-        // 2B. Interactive Digital Tasbih & Categorized Dua Spotlight Row (#14a673 Halka Gradient + #f02828 Reset)
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Quick Digital Tasbih Counter Widget
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.5.dp, EmeraldPrimary.copy(alpha = 0.55f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("home_quick_tasbih_widget")
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .background(RuhaniHalkaCardBrush)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = EmeraldPrimary.copy(alpha = 0.2f),
-                                        border = BorderStroke(1.dp, EmeraldPrimary)
-                                    ) {
-                                        Text(
-                                            text = if (isBn) "ডিজিটাল তাসবীহ • লোকাল সেভ" else "Digital Tasbih • Local Save",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = EmeraldPrimary,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = SignalRed
-                                    ) {
-                                        Text(
-                                            text = if (isBn) "আজ: ${uiState.tasbihTodayTotal}" else "Today: ${uiState.tasbihTodayTotal}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = PureWhite,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "${uiState.selectedTasbihPreset.arabic} • ${if (isBn) uiState.selectedTasbihPreset.titleBn else uiState.selectedTasbihPreset.titleEn}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            // Visual Display of Current Count
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = PureBlack,
-                                border = BorderStroke(1.5.dp, EmeraldPrimary),
-                                modifier = Modifier
-                                    .clickable { onOpenSubScreen(SubScreen.TASBIH) }
-                                    .testTag("home_tasbih_count_badge")
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    Text(
-                                        text = uiState.tasbihCurrentCount.toString(),
-                                        style = MaterialTheme.typography.headlineSmall.copy(
-                                            fontFamily = SpaceGroteskFontFamily,
-                                            fontWeight = FontWeight.ExtraBold
-                                        ),
-                                        color = PureWhite
-                                    )
-                                    Text(
-                                        text = "/${uiState.tasbihTarget}",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = SpaceGroteskFontFamily,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        color = SignalRed,
-                                        modifier = Modifier.padding(bottom = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = onIncrementTasbih,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = EmeraldPrimary,
-                                    contentColor = PureWhite
-                                ),
-                                modifier = Modifier
-                                    .weight(1.3f)
-                                    .height(44.dp)
-                                    .testTag("home_tasbih_increment_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Increment Tasbih",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (isBn) "+১ গণনা (Count)" else "+1 Count",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = PureWhite
-                                )
-                            }
-
-                            Button(
-                                onClick = onResetTasbih,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = SignalRed,
-                                    contentColor = PureWhite
-                                ),
-                                modifier = Modifier
-                                    .weight(0.85f)
-                                    .height(44.dp)
-                                    .testTag("home_tasbih_reset_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Reset Tasbih",
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (isBn) "রিসেট" else "Reset",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = PureWhite
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = { onOpenSubScreen(SubScreen.TASBIH) },
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, EmeraldPrimary),
-                                modifier = Modifier
-                                    .weight(0.9f)
-                                    .height(44.dp)
-                            ) {
-                                Text(
-                                    text = if (isBn) "পূর্ণ স্ক্রিন" else "Full View",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = EmeraldPrimary
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Quick Categorized Duas & Search Spotlight Card
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.45f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("home_categorized_duas_spotlight")
-                        .clickable { onOpenSubScreen(SubScreen.DUA_DHIKR) }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .background(RuhaniHalkaCardBrush)
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(EmeraldPrimary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search Categorized Duas",
-                                    tint = PureWhite
-                                )
-                            }
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = if (isBn) "ক্যাটাগরি ও উপলক্ষ ভিত্তিক দোয়া খুঁজুন" else "Categorized Duas & Occasion Search",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = SignalRed
-                                    ) {
-                                        Text(
-                                            text = "${RuhaniContentCatalog.duas.size} Duas",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                            fontWeight = FontWeight.Bold,
-                                            color = PureWhite,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = if (isBn) "সকাল-সন্ধ্যা, সালাত, ঘুম, সফর, অসুস্থতা ও ইফতার • সার্চ বার সহ"
-                                    else "Filter by name or occasion: Morning, Salat, Sleep, Travel, Ruqyah & Iftar",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = "Open Duas",
-                            tint = EmeraldPrimary
-                        )
-                    }
-                }
-            }
-        }
-
-        // 3. Essential Services Section Header (16 Features)
+        // 3. Essential Services Section Header (Top 10 Features)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1188,7 +942,7 @@ fun HomeDashboardScreen(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                     ) {
                         Text(
-                            text = if (isBn) "১৬টি ফিচার" else "16 Features",
+                            text = if (isBn) "১০টি সেবা" else "Top 10",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -1196,16 +950,28 @@ fun HomeDashboardScreen(
                     }
                 }
 
-                Text(
-                    text = if (isBn) "বাংলা ও ইংরেজি" else "Bangla & English",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                TextButton(
+                    onClick = { onSelectTab(MainTab.MORE) },
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = if (isBn) "সবগুলো দেখুন" else "View All",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = EmeraldPrimary
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "View All",
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
             }
         }
 
-        // 4. 16 Essential Services Grid (8 rows of 2 cards)
-        items(essentialFeatures.chunked(2)) { pair ->
+        // 4. Top 10 Essential Services Grid (5 rows of 2 cards)
+        items(essentialFeatures.take(10).chunked(2)) { pair ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1229,21 +995,23 @@ fun HomeDashboardScreen(
             }
         }
 
-        // 5. Haramain Live Banner Card
+        // 4B. "More" Services Button
         item {
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f)),
+                border = BorderStroke(1.2.dp, EmeraldPrimary.copy(alpha = 0.45f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("home_haramain_live_card")
-                    .clickable { onOpenSubScreen(SubScreen.HARAMAIN_LIVE) }
+                    .testTag("home_more_services_button")
+                    .clickable { onSelectTab(MainTab.MORE) }
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier
+                        .background(RuhaniHalkaCardBrush)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1252,57 +1020,62 @@ fun HomeDashboardScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(NoorEmeraldPrimary.copy(alpha = 0.16f)),
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(EmeraldPrimary.copy(alpha = 0.16f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.LiveTv,
-                                contentDescription = "Haramain Live",
-                                tint = NoorMintLuminous
+                                imageVector = Icons.Default.GridView,
+                                contentDescription = "More Services",
+                                tint = EmeraldPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                         Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = if (isBn) "মক্কা ও মদিনা লাইভ (Haramain)" else "Makkah & Madinah 24/7 Live",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = NoorRedAlert
-                                ) {
-                                    Text(
-                                        text = "LIVE",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                    )
-                                }
-                            }
                             Text(
-                                text = if (isBn) "মসজিদুল হারাম ও মসজিদে নববীর সরাসরি সম্প্রচার" else "Watch live stream from Masjid al-Haram & Masjid an-Nabawi",
+                                text = if (isBn) "আরও সেবা দেখুন" else "Explore More Services",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (isBn) "মাসআলা, বই, হজ্জ, শিশুর নাম ও অন্যান্য সেবা সমূহ"
+                                else "Fatwa, Books, Hajj Guide, Baby Names & More",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Open",
-                        tint = NoorMintLuminous
-                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = EmeraldPrimary.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = if (isBn) "+৬টি আরও" else "+6 More",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Go to More",
+                            tint = EmeraldPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // 6. Hadith of the Day Card
+        // 5. Hadith of the Day Card
         item {
             val dailyHadith = RuhaniContentCatalog.hadithList.first()
             Surface(
@@ -1408,6 +1181,79 @@ fun HomeDashboardScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // 6. Haramain Live Banner Card
+        item {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home_haramain_live_card")
+                    .clickable { onOpenSubScreen(SubScreen.HARAMAIN_LIVE) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NoorEmeraldPrimary.copy(alpha = 0.16f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LiveTv,
+                                contentDescription = "Haramain Live",
+                                tint = NoorMintLuminous
+                            )
+                        }
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = if (isBn) "মক্কা ও মদিনা লাইভ (Haramain)" else "Makkah & Madinah 24/7 Live",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = NoorRedAlert
+                                ) {
+                                    Text(
+                                        text = "LIVE",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = if (isBn) "মসজিদুল হারাম ও মসজিদে নববীর সরাসরি সম্প্রচার" else "Watch live stream from Masjid al-Haram & Masjid an-Nabawi",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Open",
+                        tint = NoorMintLuminous
+                    )
                 }
             }
         }

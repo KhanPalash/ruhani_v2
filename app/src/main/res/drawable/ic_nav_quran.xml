@@ -1,0 +1,26 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Open pages of the Holy Quran -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,11.5 C9.5,10 6.5,9.8 3.5,10.2 V4 C6.5,3.6 9.5,3.8 12,5.3 C14.5,3.8 17.5,3.6 20.5,4 V10.2 C17.5,9.8 14.5,10 12,11.5 Z" />
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M12,5.3 V11.5" />
+    <!-- Rehal X-legs stand -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M5.5,12.5 L18.5,20.5 M18.5,12.5 L5.5,20.5" />
+</vector>
+
