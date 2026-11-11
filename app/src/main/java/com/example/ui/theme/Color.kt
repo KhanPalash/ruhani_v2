@@ -75,6 +75,14 @@ val RuhaniHalkaCardBrush = Brush.verticalGradient(
     )
 )
 
+val RuhaniHalkaLightCardBrush = Brush.verticalGradient(
+    colors = listOf(
+        Color(0xFF14A673).copy(alpha = 0.08f),
+        Color(0xFFF0FAF5),
+        Color(0xFFFFFFFF)
+    )
+)
+
 val RuhaniRedBadgeBrush = Brush.horizontalGradient(
     colors = listOf(
         Color(0xFFF02828),

@@ -112,6 +112,7 @@ import com.example.ui.theme.PureBlack
 import com.example.ui.theme.PureWhite
 import com.example.ui.theme.RuhaniHalkaCardBrush
 import com.example.ui.theme.RuhaniHalkaDarkBrush
+import com.example.ui.theme.ruhaniCardBrush
 import com.example.ui.theme.SignalRed
 import com.example.ui.theme.SpaceGroteskFontFamily
 
@@ -1899,7 +1900,7 @@ fun DigitalTasbihScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(RuhaniHalkaCardBrush),
+                                    .background(ruhaniCardBrush()),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -2034,7 +2035,7 @@ fun DigitalTasbihScreen(
                 ) {
                     Column(
                         modifier = Modifier
-                            .background(RuhaniHalkaCardBrush)
+                            .background(ruhaniCardBrush())
                             .padding(14.dp)
                     ) {
                         Text(
@@ -2073,7 +2074,7 @@ fun DigitalTasbihScreen(
                 ) {
                     Column(
                         modifier = Modifier
-                            .background(RuhaniHalkaCardBrush)
+                            .background(ruhaniCardBrush())
                             .padding(14.dp)
                     ) {
                         Text(

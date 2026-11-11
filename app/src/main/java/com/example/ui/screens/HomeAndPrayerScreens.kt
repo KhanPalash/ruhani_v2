@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ChildCare
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FormatQuote
@@ -74,6 +75,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -114,6 +116,7 @@ import com.example.ui.theme.PureBlack
 import com.example.ui.theme.PureWhite
 import com.example.ui.theme.RuhaniHalkaCardBrush
 import com.example.ui.theme.RuhaniHalkaDarkBrush
+import com.example.ui.theme.ruhaniCardBrush
 import com.example.ui.theme.SignalRed
 import com.example.ui.theme.SpaceGroteskFontFamily
 
@@ -150,7 +153,7 @@ fun RuhaniTopBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(RuhaniHalkaCardBrush)
+                    .background(ruhaniCardBrush())
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -292,6 +295,20 @@ fun DistrictPickerDialog(
     onDismiss: () -> Unit,
     onSelect: (BdDistrict) -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredDistricts = remember(searchQuery) {
+        if (searchQuery.isBlank()) {
+            RuhaniContentCatalog.bdDistricts
+        } else {
+            val q = searchQuery.trim().lowercase()
+            RuhaniContentCatalog.bdDistricts.filter {
+                it.nameEn.lowercase().contains(q) ||
+                it.nameBn.contains(q) ||
+                it.divisionBn.contains(q)
+            }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -302,44 +319,98 @@ fun DistrictPickerDialog(
             )
         },
         text = {
-            LazyColumn(
-                modifier = Modifier.height(340.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(RuhaniContentCatalog.bdDistricts) { district ->
-                    val isSelected = district.id == selectedDistrict.id
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) NoorEmeraldPrimary.copy(alpha = 0.16f)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        border = if (isSelected) BorderStroke(1.dp, NoorEmeraldPrimary) else null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(district) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "${district.nameBn} (${district.nameEn})",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "বিভাগ: ${district.divisionBn}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            text = if (isBn) "জেলার নাম খুঁজুন..." else "Search district...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = NoorEmeraldPrimary
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Selected",
-                                    tint = NoorEmeraldPrimary
-                                )
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("district_search_input")
+                )
+
+                if (filteredDistricts.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isBn) "কোনো জেলা পাওয়া যায়নি" else "No districts found",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.height(300.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(filteredDistricts, key = { it.id }) { district ->
+                            val isSelected = district.id == selectedDistrict.id
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) NoorEmeraldPrimary.copy(alpha = 0.16f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = if (isSelected) BorderStroke(1.dp, NoorEmeraldPrimary) else null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelect(district) }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "${district.nameBn} (${district.nameEn})",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "বিভাগ: ${district.divisionBn}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Selected",
+                                            tint = NoorEmeraldPrimary
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1006,7 +1077,7 @@ fun HomeDashboardScreen(
             ) {
                 Row(
                     modifier = Modifier
-                        .background(RuhaniHalkaCardBrush)
+                        .background(ruhaniCardBrush())
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -1325,7 +1396,7 @@ private fun EssentialServiceGridCard(
     ) {
         Column(
             modifier = Modifier
-                .background(RuhaniHalkaCardBrush)
+                .background(ruhaniCardBrush())
                 .padding(14.dp)
         ) {
             Row(

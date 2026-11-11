@@ -128,6 +128,7 @@ import com.example.ui.theme.PureBlack
 import com.example.ui.theme.PureWhite
 import com.example.ui.theme.RuhaniHalkaCardBrush
 import com.example.ui.theme.RuhaniHalkaDarkBrush
+import com.example.ui.theme.ruhaniCardBrush
 import com.example.ui.theme.SignalRed
 import com.example.ui.theme.SpaceGroteskFontFamily
 import kotlin.math.abs
@@ -1111,7 +1112,7 @@ fun DuaAndDhikrScreen(
                     ) {
                         Column(
                             modifier = Modifier
-                                .background(RuhaniHalkaCardBrush)
+                                .background(ruhaniCardBrush())
                                 .padding(16.dp)
                         ) {
                             // Top Row: Category + Occasion Badge + Favorite & Audio Buttons
