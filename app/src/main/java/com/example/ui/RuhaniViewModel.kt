@@ -1,7 +1,9 @@
 package com.example.ui
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.ToneGenerator
 import android.os.Build
 import android.os.VibrationEffect
@@ -14,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.model.QuranBookmark
 import com.example.data.model.SalatLog
 import com.example.data.model.UserProfile
+import com.example.data.remote.QuranApiService
 import com.example.data.repository.RuhaniFirestoreRepository
 import com.example.domain.AstronomicalEngine
 import com.example.domain.BdDistrict
@@ -21,11 +24,18 @@ import com.example.domain.CalculationMethod
 import com.example.domain.DailyPrayerSchedule
 import com.example.domain.Madhhab
 import com.example.domain.MushafMode
+import com.example.domain.NotificationCategory
+import com.example.domain.OfflineArticleItem
+import com.example.domain.OfflineContentAndSyncManager
+import com.example.domain.PendingSyncRecord
 import com.example.domain.QariInfo
 import com.example.domain.QuranAyah
 import com.example.domain.QuranCatalog
 import com.example.domain.QuranSurah
 import com.example.domain.RuhaniContentCatalog
+import com.example.domain.RuhaniNotificationItem
+import com.example.domain.RuhaniPushNotificationManager
+import com.example.domain.SecureAuthAndPrivacyManager
 import com.example.domain.TasbihPreset
 import com.example.domain.WaqtType
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -107,9 +117,13 @@ data class RuhaniUiState(
     val tasbihTotalCycles: Int = 3,
     val tasbihTodayTotal: Int = 347,
     val tasbihAllTimeTotal: Long = 4220L,
+    val tasbihCountsByPreset: Map<String, Int> = emptyMap(),
     val tasbihVibrationEnabled: Boolean = true,
     val tasbihSoundEnabled: Boolean = false,
     val showTasbihResetDialog: Boolean = false,
+    // Dua Local State
+    val duaCountsById: Map<String, Int> = emptyMap(),
+    val favoriteDuaIds: Set<String> = emptySet(),
     // Quran Reader & Audio State
     val selectedSurah: QuranSurah = QuranCatalog.surahs.first(),
     val lastReadSurahNumber: Int = 1,
@@ -124,10 +138,39 @@ data class RuhaniUiState(
     val playingSurahNumber: Int? = 1,
     val playingAyahNumber: Int? = 2,
     val isAudioPlaying: Boolean = false,
-    val audioProgressFraction: Float = 0.45f,
+    val isAudioBuffering: Boolean = false,
+    val audioAutoAdvance: Boolean = true,
+    val audioProgressFraction: Float = 0.0f,
+    val audioCurrentPositionMs: Int = 0,
+    val audioDurationMs: Int = 0,
     val audioRepeat3x: Boolean = false,
+    val ayahRepeatIteration: Int = 1,
+    val currentAyahAudioUrl: String = "https://the-quran-project.github.io/Quran-Audio/Data/1/1_2.mp3",
+    val currentAyahOriginalUrl: String = "https://everyayah.com/data/Alafasy_128kbps/001002.mp3",
+    val currentAyahApiEndpoint: String = "https://quranapi.pages.dev/api/1/2.json",
+    val isSurahSyncingFromApi: Boolean = false,
     val expandedTafsirAyahKey: String? = null,
     val downloadedSurahIds: Set<Int> = setOf(1, 36, 67, 112, 113, 114),
+    val downloadingSurahId: Int? = null,
+    val isPlayingFromOfflineCache: Boolean = false,
+    // Auth & Privacy State
+    val authProvider: String = "GUEST", // "GOOGLE", "EMAIL_PASSWORD", "GUEST"
+    val privacyCloudSyncConsent: Boolean = true,
+    val privacyPersonalizedAlertsConsent: Boolean = true,
+    val privacyDataMinimization: Boolean = true,
+    val exportedUserDataJson: String? = null,
+    // Offline Content & Progress Synchronization State
+    val isDeviceOnline: Boolean = true,
+    val downloadedArticleIds: Set<String> = setOf("art_khushu_salat"),
+    val articleReadProgress: Map<String, Int> = mapOf("art_khushu_salat" to 35),
+    val offlineStorageUsedKb: Int = 420,
+    val pendingSyncQueue: List<PendingSyncRecord> = emptyList(),
+    val lastSyncedLabel: String = "আজ সংরক্ষিত (Just now)",
+    // Push & Personalized Notifications State
+    val notifyNewContentAlerts: Boolean = true,
+    val notifyImportantUpdates: Boolean = true,
+    val notifyPersonalizedActivity: Boolean = true,
+    val notificationFeed: List<RuhaniNotificationItem> = emptyList(),
     // Salat & Qaza Tracker
     val salatLogsByDate: Map<String, SalatLog> = emptyMap(),
     val qazaFajr: Long = 2L,
@@ -167,14 +210,28 @@ class RuhaniViewModel(
     val uiState: StateFlow<RuhaniUiState> = _uiState.asStateFlow()
 
     private var audioPlayJob: Job? = null
+    private var mediaPlayer: MediaPlayer? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
 
     init {
         initTts()
+        RuhaniPushNotificationManager.ensureNotificationChannels(appContext)
         startLivePrayerClock()
+        observeNetworkConnectivity()
         if (authenticatedUserId != null && firestoreRepository != null) {
             observeCloudData(authenticatedUserId, firestoreRepository)
+        }
+    }
+
+    private fun observeNetworkConnectivity() {
+        networkCallback = OfflineContentAndSyncManager.registerNetworkCallback(appContext) { isOnline ->
+            val wasOffline = !_uiState.value.isDeviceOnline
+            _uiState.update { it.copy(isDeviceOnline = isOnline) }
+            if (isOnline && wasOffline && _uiState.value.pendingSyncQueue.isNotEmpty()) {
+                synchronizeOfflineChangesNow()
+            }
         }
     }
 
@@ -203,7 +260,16 @@ class RuhaniViewModel(
         val theme = prefs.getString("theme_mode", "DARK") ?: "DARK"
         val onboarded = prefs.getBoolean("onboarded", false)
         val guest = prefs.getBoolean("guest_mode", false)
+        val localSession = SecureAuthAndPrivacyManager.getActiveSession(appContext)
+        val resolvedUserId = authenticatedUserId ?: localSession?.userId
+        val resolvedEmail = authenticatedEmail ?: localSession?.email
+        val resolvedProvider = when {
+            authenticatedUserId != null -> "GOOGLE"
+            localSession != null -> localSession.authProvider
+            else -> "GUEST"
+        }
         val displayName = authenticatedName?.takeIf { it.isNotBlank() }
+            ?: localSession?.displayName?.takeIf { it.isNotBlank() }
             ?: prefs.getString("display_name", "মুসলিম ব্যবহারকারী")
             ?: "মুসলিম ব্যবহারকারী"
 
@@ -216,7 +282,7 @@ class RuhaniViewModel(
 
         val defaultSalatLog = SalatLog(
             id = todaySchedule.dateKey,
-            userId = authenticatedUserId ?: "local",
+            userId = resolvedUserId ?: "local",
             dateKey = todaySchedule.dateKey,
             fajr = prefs.getBoolean("salat_${todaySchedule.dateKey}_fajr", true),
             dhuhr = prefs.getBoolean("salat_${todaySchedule.dateKey}_dhuhr", true),
@@ -230,12 +296,54 @@ class RuhaniViewModel(
             fasting = prefs.getBoolean("salat_${todaySchedule.dateKey}_fasting", false)
         )
 
+        val tasbihToday = prefs.getInt("tasbih_today", 347)
+        val savedPresetId = prefs.getString("selected_tasbih_preset_id", RuhaniContentCatalog.tasbihPresets.first().id)
+            ?: RuhaniContentCatalog.tasbihPresets.first().id
+        val activePreset = RuhaniContentCatalog.tasbihPresets.firstOrNull { it.id == savedPresetId }
+            ?: RuhaniContentCatalog.tasbihPresets.first()
+        val presetCountsMap = RuhaniContentCatalog.tasbihPresets.associate { preset ->
+            val defaultVal = if (preset.id == activePreset.id) prefs.getInt("tasbih_current", 23) else 0
+            preset.id to prefs.getInt("tasbih_preset_count_${preset.id}", defaultVal)
+        }
+        val currentCountForActive = presetCountsMap[activePreset.id] ?: prefs.getInt("tasbih_current", 23)
+        val savedTarget = prefs.getInt("tasbih_target", activePreset.defaultTarget)
+        val savedCycle = prefs.getInt("tasbih_cycle", 1)
+
+        val duaCountsMap = RuhaniContentCatalog.duas.associate { dua ->
+            dua.id to prefs.getInt("dua_count_${dua.id}", 0)
+        }
+        val favDuas = prefs.getStringSet("favorite_duas", setOf("sayyidul_istighfar", "rabbana_atina"))
+            ?.toSet() ?: setOf("sayyidul_istighfar", "rabbana_atina")
+
+        val initialNotifs = RuhaniPushNotificationManager.buildInitialNotifications(
+            nextWaqtLabelBn = todaySchedule.nextWaqt.nameBn,
+            tasbihToday = tasbihToday,
+            lastReadSurahBn = QuranCatalog.surahs.first().nameBn,
+            lastReadAyah = 2
+        )
+
         return RuhaniUiState(
-            hasCompletedOnboarding = onboarded || authenticatedUserId != null,
-            isGuestMode = guest,
-            currentUserId = authenticatedUserId,
-            userEmail = authenticatedEmail,
+            hasCompletedOnboarding = onboarded || resolvedUserId != null,
+            isGuestMode = guest && resolvedUserId == null,
+            currentUserId = resolvedUserId,
+            userEmail = resolvedEmail,
             displayName = displayName,
+            authProvider = resolvedProvider,
+            privacyCloudSyncConsent = localSession?.privacyCloudSyncConsent ?: true,
+            privacyPersonalizedAlertsConsent = localSession?.privacyPersonalizedAlertsConsent ?: true,
+            privacyDataMinimization = localSession?.privacyAnalyticsMinimize ?: true,
+            isDeviceOnline = OfflineContentAndSyncManager.isDeviceOnline(appContext),
+            downloadedArticleIds = OfflineContentAndSyncManager.getDownloadedArticleIds(appContext),
+            articleReadProgress = OfflineContentAndSyncManager.getArticleProgressMap(appContext).ifEmpty {
+                mapOf("art_khushu_salat" to 35)
+            },
+            offlineStorageUsedKb = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext),
+            pendingSyncQueue = OfflineContentAndSyncManager.getPendingSyncQueue(appContext),
+            lastSyncedLabel = OfflineContentAndSyncManager.getLastSyncTimestampLabel(appContext),
+            notifyNewContentAlerts = prefs.getBoolean("notify_new_content", true),
+            notifyImportantUpdates = prefs.getBoolean("notify_important_updates", true),
+            notifyPersonalizedActivity = prefs.getBoolean("notify_personalized_activity", true),
+            notificationFeed = initialNotifs,
             language = lang,
             themeMode = theme,
             selectedDistrict = district,
@@ -243,9 +351,15 @@ class RuhaniViewModel(
             madhhab = madhhab,
             hijriOffsetDays = hijriOffset,
             schedule = todaySchedule,
-            tasbihCurrentCount = prefs.getInt("tasbih_current", 23),
-            tasbihTodayTotal = prefs.getInt("tasbih_today", 347),
+            selectedTasbihPreset = activePreset,
+            tasbihCurrentCount = currentCountForActive,
+            tasbihTarget = savedTarget,
+            tasbihCycle = savedCycle,
+            tasbihTodayTotal = tasbihToday,
             tasbihAllTimeTotal = prefs.getLong("tasbih_all_time", 4220L),
+            tasbihCountsByPreset = presetCountsMap,
+            duaCountsById = duaCountsMap,
+            favoriteDuaIds = favDuas,
             qazaFajr = prefs.getLong("qaza_fajr", 2L),
             qazaDhuhr = prefs.getLong("qaza_dhuhr", 1L),
             qazaAsr = prefs.getLong("qaza_asr", 0L),
@@ -494,14 +608,33 @@ class RuhaniViewModel(
         syncProfileToCloud()
     }
 
-    // --- DIGITAL TASBIH ACTIONS ---
+    // --- DIGITAL TASBIH & LOCAL PERSISTENCE ACTIONS ---
     fun selectTasbihPreset(preset: TasbihPreset) {
+        val savedCount = _uiState.value.tasbihCountsByPreset[preset.id]
+            ?: prefs.getInt("tasbih_preset_count_${preset.id}", 0)
+        prefs.edit()
+            .putString("selected_tasbih_preset_id", preset.id)
+            .putInt("tasbih_target", preset.defaultTarget)
+            .putInt("tasbih_current", savedCount)
+            .apply()
         _uiState.update {
             it.copy(
                 selectedTasbihPreset = preset,
                 tasbihTarget = preset.defaultTarget,
-                tasbihCurrentCount = 0,
+                tasbihCurrentCount = savedCount,
                 tasbihCycle = 1
+            )
+        }
+    }
+
+    fun updateTasbihTarget(target: Int) {
+        val safeTarget = target.coerceAtLeast(1)
+        prefs.edit().putInt("tasbih_target", safeTarget).apply()
+        _uiState.update { state ->
+            val clampedCount = state.tasbihCurrentCount.coerceAtMost(safeTarget)
+            state.copy(
+                tasbihTarget = safeTarget,
+                tasbihCurrentCount = clampedCount
             )
         }
     }
@@ -527,9 +660,13 @@ class RuhaniViewModel(
 
         val nextToday = s.tasbihTodayTotal + 1
         val nextAllTime = s.tasbihAllTimeTotal + 1L
+        val presetId = s.selectedTasbihPreset.id
+        val updatedPresetCounts = s.tasbihCountsByPreset + (presetId to nextCount)
 
         prefs.edit()
             .putInt("tasbih_current", nextCount)
+            .putInt("tasbih_cycle", nextCycle)
+            .putInt("tasbih_preset_count_$presetId", nextCount)
             .putInt("tasbih_today", nextToday)
             .putLong("tasbih_all_time", nextAllTime)
             .apply()
@@ -539,7 +676,8 @@ class RuhaniViewModel(
                 tasbihCurrentCount = nextCount,
                 tasbihCycle = nextCycle,
                 tasbihTodayTotal = nextToday,
-                tasbihAllTimeTotal = nextAllTime
+                tasbihAllTimeTotal = nextAllTime,
+                tasbihCountsByPreset = updatedPresetCounts
             )
         }
 
@@ -557,21 +695,37 @@ class RuhaniViewModel(
     }
 
     fun confirmTasbihReset() {
-        prefs.edit().putInt("tasbih_current", 0).apply()
+        val presetId = _uiState.value.selectedTasbihPreset.id
+        val updatedPresetCounts = _uiState.value.tasbihCountsByPreset + (presetId to 0)
+        prefs.edit()
+            .putInt("tasbih_current", 0)
+            .putInt("tasbih_cycle", 1)
+            .putInt("tasbih_preset_count_$presetId", 0)
+            .apply()
         _uiState.update {
             it.copy(
                 tasbihCurrentCount = 0,
                 tasbihCycle = 1,
+                tasbihCountsByPreset = updatedPresetCounts,
                 showTasbihResetDialog = false
             )
         }
     }
 
     fun startNewTasbihCycle() {
+        val presetId = _uiState.value.selectedTasbihPreset.id
+        val nextCycle = (_uiState.value.tasbihCycle % _uiState.value.tasbihTotalCycles) + 1
+        val updatedPresetCounts = _uiState.value.tasbihCountsByPreset + (presetId to 0)
+        prefs.edit()
+            .putInt("tasbih_current", 0)
+            .putInt("tasbih_cycle", nextCycle)
+            .putInt("tasbih_preset_count_$presetId", 0)
+            .apply()
         _uiState.update {
             it.copy(
                 tasbihCurrentCount = 0,
-                tasbihCycle = (it.tasbihCycle % it.tasbihTotalCycles) + 1
+                tasbihCycle = nextCycle,
+                tasbihCountsByPreset = updatedPresetCounts
             )
         }
     }
@@ -582,6 +736,33 @@ class RuhaniViewModel(
 
     fun toggleTasbihSound() {
         _uiState.update { it.copy(tasbihSoundEnabled = !it.tasbihSoundEnabled) }
+    }
+
+    // --- DUA LOCAL COUNTER & FAVORITES ---
+    fun incrementDuaCount(duaId: String, target: Int) {
+        val current = _uiState.value.duaCountsById[duaId] ?: 0
+        val next = if (current >= target) 1 else current + 1
+        if (_uiState.value.tasbihVibrationEnabled) {
+            triggerHapticTap()
+        }
+        prefs.edit().putInt("dua_count_$duaId", next).apply()
+        _uiState.update { state ->
+            state.copy(duaCountsById = state.duaCountsById + (duaId to next))
+        }
+    }
+
+    fun resetDuaCount(duaId: String) {
+        prefs.edit().putInt("dua_count_$duaId", 0).apply()
+        _uiState.update { state ->
+            state.copy(duaCountsById = state.duaCountsById + (duaId to 0))
+        }
+    }
+
+    fun toggleFavoriteDua(duaId: String) {
+        val currentFavs = _uiState.value.favoriteDuaIds
+        val nextFavs = if (duaId in currentFavs) currentFavs - duaId else currentFavs + duaId
+        prefs.edit().putStringSet("favorite_duas", nextFavs).apply()
+        _uiState.update { it.copy(favoriteDuaIds = nextFavs) }
     }
 
     private fun triggerHapticTap() {
@@ -613,15 +794,42 @@ class RuhaniViewModel(
         }
     }
 
-    // --- QURAN READER & AUDIO ACTIONS ---
+    // --- QURAN READER & AUDIO ACTIONS (The-Quran-Project/Quran-API) ---
     fun openSurah(surah: QuranSurah) {
+        val defaultAyah = surah.ayahs.firstOrNull()?.ayahNumber ?: 1
+        val reciterKey = QuranApiService.normalizeReciterKey(_uiState.value.selectedQari.id)
+        val initialAudio = QuranApiService.buildStandardAudioMap(surah.number, defaultAyah)[reciterKey]
         _uiState.update {
             it.copy(
                 selectedSurah = surah,
                 lastReadSurahNumber = surah.number,
-                lastReadAyahNumber = 1,
-                activeSubScreen = SubScreen.SURAH_READER
+                lastReadAyahNumber = defaultAyah,
+                playingSurahNumber = surah.number,
+                playingAyahNumber = defaultAyah,
+                currentAyahAudioUrl = initialAudio?.url ?: it.currentAyahAudioUrl,
+                currentAyahOriginalUrl = initialAudio?.originalUrl ?: it.currentAyahOriginalUrl,
+                currentAyahApiEndpoint = QuranApiService.buildAyahEndpointUrl(surah.number, defaultAyah),
+                activeSubScreen = SubScreen.SURAH_READER,
+                isSurahSyncingFromApi = surah.ayahs.size < surah.totalAyahs
             )
+        }
+        // Fetch full Surah verses from The-Quran-Project/Quran-API (https://quranapi.pages.dev/api/{surahNo}.json)
+        viewModelScope.launch {
+            val result = QuranApiService.fetchFullSurahAyahs(surah)
+            result.onSuccess { fullAyahs ->
+                _uiState.update { current ->
+                    if (current.selectedSurah.number == surah.number) {
+                        current.copy(
+                            selectedSurah = current.selectedSurah.copy(ayahs = fullAyahs),
+                            isSurahSyncingFromApi = false
+                        )
+                    } else {
+                        current.copy(isSurahSyncingFromApi = false)
+                    }
+                }
+            }.onFailure {
+                _uiState.update { it.copy(isSurahSyncingFromApi = false) }
+            }
         }
     }
 
@@ -653,7 +861,25 @@ class RuhaniViewModel(
     }
 
     fun selectQari(qari: QariInfo) {
-        _uiState.update { it.copy(selectedQari = qari) }
+        val current = _uiState.value
+        val surahNo = current.playingSurahNumber ?: current.selectedSurah.number
+        val ayahNo = current.playingAyahNumber ?: 1
+        val reciterKey = QuranApiService.normalizeReciterKey(qari.id)
+        val audioInfo = QuranApiService.buildStandardAudioMap(surahNo, ayahNo)[reciterKey]
+        _uiState.update {
+            it.copy(
+                selectedQari = qari,
+                currentAyahAudioUrl = audioInfo?.url ?: it.currentAyahAudioUrl,
+                currentAyahOriginalUrl = audioInfo?.originalUrl ?: it.currentAyahOriginalUrl
+            )
+        }
+        if (current.isAudioPlaying) {
+            val activeSurah = if (current.selectedSurah.number == surahNo) current.selectedSurah
+            else QuranCatalog.surahs.firstOrNull { it.number == surahNo } ?: QuranCatalog.surahs.first()
+            val activeAyah = activeSurah.ayahs.firstOrNull { it.ayahNumber == ayahNo }
+                ?: activeSurah.ayahs.first()
+            startAyahPlayback(activeSurah, activeAyah, resetRepeatCounter = true)
+        }
     }
 
     fun toggleTafsirForAyah(surahNum: Int, ayahNum: Int) {
@@ -670,7 +896,7 @@ class RuhaniViewModel(
             pauseAudio()
             return
         }
-        startAyahPlayback(surah, ayah)
+        startAyahPlayback(surah, ayah, resetRepeatCounter = true)
     }
 
     fun toggleGlobalAudioPlayPause() {
@@ -678,26 +904,62 @@ class RuhaniViewModel(
         if (s.isAudioPlaying) {
             pauseAudio()
         } else {
-            val surah = QuranCatalog.surahs.firstOrNull { it.number == s.playingSurahNumber } ?: s.selectedSurah
+            val surah = if (s.selectedSurah.number == s.playingSurahNumber) s.selectedSurah
+            else QuranCatalog.surahs.firstOrNull { it.number == s.playingSurahNumber } ?: s.selectedSurah
             val ayah = surah.ayahs.firstOrNull { it.ayahNumber == s.playingAyahNumber } ?: surah.ayahs.first()
-            startAyahPlayback(surah, ayah)
+            startAyahPlayback(surah, ayah, resetRepeatCounter = false)
         }
     }
 
     fun stepAyahAudio(delta: Int) {
         val s = _uiState.value
-        val surah = QuranCatalog.surahs.firstOrNull { it.number == s.playingSurahNumber } ?: s.selectedSurah
+        val surah = if (s.selectedSurah.number == s.playingSurahNumber) s.selectedSurah
+        else QuranCatalog.surahs.firstOrNull { it.number == s.playingSurahNumber } ?: s.selectedSurah
         val idx = surah.ayahs.indexOfFirst { it.ayahNumber == s.playingAyahNumber }.coerceAtLeast(0)
         val nextIdx = (idx + delta).coerceIn(0, surah.ayahs.lastIndex)
-        startAyahPlayback(surah, surah.ayahs[nextIdx])
+        startAyahPlayback(surah, surah.ayahs[nextIdx], resetRepeatCounter = true)
     }
 
     fun toggleAudioRepeat3x() {
-        _uiState.update { it.copy(audioRepeat3x = !it.audioRepeat3x) }
+        _uiState.update {
+            it.copy(
+                audioRepeat3x = !it.audioRepeat3x,
+                ayahRepeatIteration = 1
+            )
+        }
     }
 
-    private fun startAyahPlayback(surah: QuranSurah, ayah: QuranAyah) {
+    fun toggleAudioAutoAdvance() {
+        _uiState.update { it.copy(audioAutoAdvance = !it.audioAutoAdvance) }
+    }
+
+    private fun releaseMediaPlayer() {
+        try {
+            mediaPlayer?.setOnPreparedListener(null)
+            mediaPlayer?.setOnCompletionListener(null)
+            mediaPlayer?.setOnErrorListener(null)
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.stop()
+            }
+            mediaPlayer?.release()
+        } catch (_: Exception) {
+        } finally {
+            mediaPlayer = null
+        }
+    }
+
+    private fun startAyahPlayback(
+        surah: QuranSurah,
+        ayah: QuranAyah,
+        resetRepeatCounter: Boolean = true
+    ) {
         audioPlayJob?.cancel()
+        releaseMediaPlayer()
+
+        val reciterKey = QuranApiService.normalizeReciterKey(_uiState.value.selectedQari.id)
+        val fallbackAudio = QuranApiService.buildStandardAudioMap(surah.number, ayah.ayahNumber)[reciterKey]
+        val endpointUrl = QuranApiService.buildAyahEndpointUrl(surah.number, ayah.ayahNumber)
+
         _uiState.update {
             it.copy(
                 playingSurahNumber = surah.number,
@@ -705,41 +967,226 @@ class RuhaniViewModel(
                 lastReadSurahNumber = surah.number,
                 lastReadAyahNumber = ayah.ayahNumber,
                 isAudioPlaying = true,
-                audioProgressFraction = 0.05f
+                isAudioBuffering = true,
+                audioProgressFraction = 0.02f,
+                audioCurrentPositionMs = 0,
+                audioDurationMs = 0,
+                ayahRepeatIteration = if (resetRepeatCounter) 1 else it.ayahRepeatIteration,
+                currentAyahAudioUrl = fallbackAudio?.url ?: "",
+                currentAyahOriginalUrl = fallbackAudio?.originalUrl ?: "",
+                currentAyahApiEndpoint = endpointUrl
             )
         }
-        if (ttsReady) {
-            try {
-                tts?.speak(ayah.arabicText, TextToSpeech.QUEUE_FLUSH, null, "ayah_${surah.number}_${ayah.ayahNumber}")
-            } catch (e: Exception) {
-                Log.d("RuhaniVM", "TTS speak fallback: ${e.message}")
+
+        audioPlayJob = viewModelScope.launch {
+            // 0. Check if Ayah audio is cached offline first
+            val offlineFile = OfflineContentAndSyncManager.getOfflineAudioFile(
+                appContext,
+                reciterKey,
+                surah.number,
+                ayah.ayahNumber
+            )
+            val hasOfflineMp3 = offlineFile.exists() && offlineFile.length() > 1500L
+
+            // 1. Fetch Ayah metadata & reciter audio URLs from GET https://quranapi.pages.dev/api/{surahNo}/{ayahNo}.json
+            val apiResult = QuranApiService.fetchAyah(surah.number, ayah.ayahNumber)
+            val resolvedAudio = apiResult.getOrNull()?.audioByReciter?.get(reciterKey) ?: fallbackAudio
+            val primaryMp3Url = if (hasOfflineMp3) offlineFile.absolutePath else (resolvedAudio?.url ?: "")
+            val backupMp3Url = resolvedAudio?.originalUrl ?: (resolvedAudio?.url ?: "")
+
+            _uiState.update { state ->
+                state.copy(
+                    currentAyahAudioUrl = resolvedAudio?.url ?: fallbackAudio?.url ?: "",
+                    currentAyahOriginalUrl = backupMp3Url,
+                    currentAyahApiEndpoint = endpointUrl,
+                    isPlayingFromOfflineCache = hasOfflineMp3 || (surah.number in state.downloadedSurahIds)
+                )
+            }
+
+            // 2. Try streaming real MP3 audio via Android MediaPlayer (or local offline MP3)
+            val streamedSuccess = streamMp3WithMediaPlayer(
+                primaryUrl = primaryMp3Url,
+                backupUrl = backupMp3Url,
+                surah = surah,
+                ayah = ayah
+            )
+
+            // 3. Fallback for offline / unit test environments without MediaPlayer network access
+            if (!streamedSuccess && isActive && _uiState.value.isAudioPlaying) {
+                _uiState.update { it.copy(isAudioBuffering = false) }
+                if (ttsReady) {
+                    try {
+                        tts?.speak(
+                            ayah.arabicText,
+                            TextToSpeech.QUEUE_FLUSH,
+                            null,
+                            "ayah_${surah.number}_${ayah.ayahNumber}"
+                        )
+                    } catch (e: Exception) {
+                        Log.d("RuhaniVM", "TTS speak fallback: ${e.message}")
+                    }
+                }
+                val totalMs = 6000
+                val steps = 24
+                val stepMs = totalMs / steps
+                for (i in 1..steps) {
+                    if (!isActive || !_uiState.value.isAudioPlaying) return@launch
+                    delay(stepMs.toLong())
+                    _uiState.update {
+                        it.copy(
+                            audioProgressFraction = i.toFloat() / steps.toFloat(),
+                            audioCurrentPositionMs = i * stepMs,
+                            audioDurationMs = totalMs
+                        )
+                    }
+                }
+                onAyahPlaybackFinished(surah, ayah)
             }
         }
-        audioPlayJob = viewModelScope.launch {
-            val steps = 30
-            for (i in 1..steps) {
-                delay(250L)
-                _uiState.update { it.copy(audioProgressFraction = i.toFloat() / steps.toFloat()) }
+    }
+
+    private suspend fun streamMp3WithMediaPlayer(
+        primaryUrl: String,
+        backupUrl: String,
+        surah: QuranSurah,
+        ayah: QuranAyah
+    ): Boolean {
+        if (primaryUrl.isBlank() && backupUrl.isBlank()) return false
+        val urlsToTry = listOfNotNull(
+            primaryUrl.takeIf { it.isNotBlank() },
+            backupUrl.takeIf { it.isNotBlank() && it != primaryUrl }
+        )
+
+        for (candidateUrl in urlsToTry) {
+            try {
+                val player = MediaPlayer()
+                mediaPlayer = player
+                player.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+
+                var prepared = false
+                var failed = false
+                var completed = false
+
+                player.setOnPreparedListener {
+                    prepared = true
+                }
+                player.setOnErrorListener { _, _, _ ->
+                    failed = true
+                    true
+                }
+                player.setOnCompletionListener {
+                    completed = true
+                }
+
+                player.setDataSource(candidateUrl)
+                player.prepareAsync()
+
+                // Wait up to 6 seconds for prepareAsync
+                var waitedMs = 0
+                while (!prepared && !failed && waitedMs < 6000 && _uiState.value.isAudioPlaying) {
+                    delay(100L)
+                    waitedMs += 100
+                }
+
+                if (!prepared || failed || !_uiState.value.isAudioPlaying) {
+                    releaseMediaPlayer()
+                    continue
+                }
+
+                player.start()
+                val duration = player.duration.coerceAtLeast(1000)
+                _uiState.update {
+                    it.copy(
+                        isAudioBuffering = false,
+                        audioDurationMs = duration
+                    )
+                }
+
+                while (!completed && !failed && _uiState.value.isAudioPlaying) {
+                    val pos = try {
+                        player.currentPosition.coerceAtLeast(0)
+                    } catch (_: Exception) {
+                        0
+                    }
+                    val total = try {
+                        player.duration.takeIf { it > 0 } ?: duration
+                    } catch (_: Exception) {
+                        duration
+                    }
+                    val fraction = (pos.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                    _uiState.update {
+                        it.copy(
+                            audioProgressFraction = fraction,
+                            audioCurrentPositionMs = pos,
+                            audioDurationMs = total
+                        )
+                    }
+                    delay(150L)
+                }
+
+                releaseMediaPlayer()
+                if (completed && _uiState.value.isAudioPlaying) {
+                    _uiState.update {
+                        it.copy(
+                            audioProgressFraction = 1f,
+                            audioCurrentPositionMs = it.audioDurationMs
+                        )
+                    }
+                    onAyahPlaybackFinished(surah, ayah)
+                    return true
+                }
+                if (!_uiState.value.isAudioPlaying) {
+                    return true
+                }
+            } catch (e: Exception) {
+                Log.d("RuhaniVM", "MediaPlayer candidate failed ($candidateUrl): ${e.message}")
+                releaseMediaPlayer()
             }
-            val current = _uiState.value
-            val currentIdx = surah.ayahs.indexOfFirst { it.ayahNumber == ayah.ayahNumber }
-            if (current.audioRepeat3x) {
-                startAyahPlayback(surah, ayah)
-            } else if (currentIdx in 0 until surah.ayahs.lastIndex) {
-                startAyahPlayback(surah, surah.ayahs[currentIdx + 1])
-            } else {
-                _uiState.update { it.copy(isAudioPlaying = false, audioProgressFraction = 1f) }
+        }
+        return false
+    }
+
+    private fun onAyahPlaybackFinished(surah: QuranSurah, ayah: QuranAyah) {
+        val current = _uiState.value
+        val activeSurah = if (current.selectedSurah.number == surah.number) current.selectedSurah else surah
+        val currentIdx = activeSurah.ayahs.indexOfFirst { it.ayahNumber == ayah.ayahNumber }
+
+        if (current.audioRepeat3x && current.ayahRepeatIteration < 3) {
+            _uiState.update { it.copy(ayahRepeatIteration = it.ayahRepeatIteration + 1) }
+            startAyahPlayback(activeSurah, ayah, resetRepeatCounter = false)
+        } else if (current.audioAutoAdvance && currentIdx in 0 until activeSurah.ayahs.lastIndex) {
+            _uiState.update { it.copy(ayahRepeatIteration = 1) }
+            startAyahPlayback(activeSurah, activeSurah.ayahs[currentIdx + 1], resetRepeatCounter = true)
+        } else {
+            _uiState.update {
+                it.copy(
+                    isAudioPlaying = false,
+                    isAudioBuffering = false,
+                    audioProgressFraction = 1f,
+                    ayahRepeatIteration = 1
+                )
             }
         }
     }
 
     private fun pauseAudio() {
         audioPlayJob?.cancel()
+        releaseMediaPlayer()
         try {
             tts?.stop()
         } catch (_: Exception) {
         }
-        _uiState.update { it.copy(isAudioPlaying = false) }
+        _uiState.update {
+            it.copy(
+                isAudioPlaying = false,
+                isAudioBuffering = false
+            )
+        }
     }
 
     fun speakArabicText(arabicText: String) {
@@ -791,13 +1238,317 @@ class RuhaniViewModel(
     }
 
     fun toggleOfflineSurahDownload(surahNumber: Int) {
-        _uiState.update { state ->
-            val next = if (surahNumber in state.downloadedSurahIds) {
-                state.downloadedSurahIds - surahNumber
-            } else {
-                state.downloadedSurahIds + surahNumber
+        val current = _uiState.value
+        if (surahNumber in current.downloadedSurahIds) {
+            OfflineContentAndSyncManager.removeOfflineSurah(appContext, surahNumber)
+            _uiState.update { state ->
+                state.copy(
+                    downloadedSurahIds = state.downloadedSurahIds - surahNumber,
+                    offlineStorageUsedKb = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext),
+                    syncStatusMessage = "অফলাইন মেমরি থেকে সূরা #$surahNumber সরানো হয়েছে"
+                )
             }
-            state.copy(downloadedSurahIds = next)
+        } else {
+            val surah = QuranCatalog.surahs.firstOrNull { it.number == surahNumber } ?: return
+            val reciterKey = QuranApiService.normalizeReciterKey(current.selectedQari.id)
+            _uiState.update { it.copy(downloadingSurahId = surahNumber) }
+            viewModelScope.launch {
+                OfflineContentAndSyncManager.downloadSurahForOffline(appContext, surah, reciterKey)
+                _uiState.update { state ->
+                    state.copy(
+                        downloadedSurahIds = state.downloadedSurahIds + surahNumber,
+                        downloadingSurahId = null,
+                        offlineStorageUsedKb = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext),
+                        syncStatusMessage = "${surah.nameBn} (অডিও ও তাফসীর) অফলাইনে ডাউনলোড সম্পন্ন হয়েছে"
+                    )
+                }
+            }
+        }
+    }
+
+    fun toggleOfflineArticleDownload(article: OfflineArticleItem) {
+        val current = _uiState.value
+        if (article.id in current.downloadedArticleIds) {
+            OfflineContentAndSyncManager.removeOfflineArticle(appContext, article.id)
+            _uiState.update { state ->
+                state.copy(
+                    downloadedArticleIds = state.downloadedArticleIds - article.id,
+                    offlineStorageUsedKb = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext),
+                    syncStatusMessage = "অফলাইন তালিকা থেকে প্রবন্ধটি সরানো হয়েছে"
+                )
+            }
+        } else {
+            viewModelScope.launch {
+                OfflineContentAndSyncManager.downloadArticleForOffline(appContext, article)
+                _uiState.update { state ->
+                    state.copy(
+                        downloadedArticleIds = state.downloadedArticleIds + article.id,
+                        offlineStorageUsedKb = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext),
+                        syncStatusMessage = "‘${article.titleBn}’ অফলাইনে পড়ার ও শোনার জন্য সংরক্ষিত হয়েছে"
+                    )
+                }
+            }
+        }
+    }
+
+    fun updateArticleReadingProgress(article: OfflineArticleItem, progressPercent: Int) {
+        val updatedMap = OfflineContentAndSyncManager.saveArticleReadProgress(
+            appContext,
+            article.id,
+            progressPercent
+        )
+        val queue = OfflineContentAndSyncManager.enqueuePendingSyncAction(
+            context = appContext,
+            type = "ARTICLE_PROGRESS",
+            descriptionBn = "প্রবন্ধ পাঠের অগ্রগতি: ${article.titleBn} ($progressPercent%)",
+            payloadJson = "{\"articleId\":\"${article.id}\",\"progress\":$progressPercent}"
+        )
+        _uiState.update {
+            it.copy(
+                articleReadProgress = updatedMap,
+                pendingSyncQueue = queue,
+                syncStatusMessage = "পাঠের অগ্রগতি ($progressPercent%) সংরক্ষিত হয়েছে"
+            )
+        }
+        if (_uiState.value.isDeviceOnline && authenticatedUserId != null) {
+            synchronizeOfflineChangesNow()
+        }
+    }
+
+    fun synchronizeOfflineChangesNow() {
+        viewModelScope.launch {
+            val s = _uiState.value
+            if (authenticatedUserId != null && firestoreRepository != null && s.privacyCloudSyncConsent) {
+                syncProfileToCloud()
+                s.salatLogsByDate.values.forEach { log ->
+                    firestoreRepository.saveSalatLog(log)
+                }
+            }
+            val syncedTime = OfflineContentAndSyncManager.markQueueSynchronized(appContext)
+            _uiState.update {
+                it.copy(
+                    pendingSyncQueue = emptyList(),
+                    lastSyncedLabel = syncedTime,
+                    syncStatusMessage = "সকল অফলাইন পরিবর্তন ও অগ্রগতি সফলভাবে সিঙ্ক হয়েছে ($syncedTime)"
+                )
+            }
+        }
+    }
+
+    // --- SECURE EMAIL/PASSWORD AUTH & PRIVACY ACTIONS ---
+    fun registerWithEmailPassword(
+        displayName: String,
+        email: String,
+        password: String,
+        privacyConsent: Boolean
+    ) {
+        val result = SecureAuthAndPrivacyManager.registerWithEmailPassword(
+            context = appContext,
+            displayName = displayName,
+            email = email,
+            password = password,
+            privacyConsentAccepted = privacyConsent
+        )
+        result.onSuccess { session ->
+            prefs.edit()
+                .putBoolean("onboarded", true)
+                .putBoolean("guest_mode", false)
+                .putString("display_name", session.displayName)
+                .apply()
+            _uiState.update {
+                it.copy(
+                    hasCompletedOnboarding = true,
+                    isGuestMode = false,
+                    currentUserId = session.userId,
+                    userEmail = session.email,
+                    displayName = session.displayName,
+                    authProvider = session.authProvider,
+                    errorMessage = null,
+                    syncStatusMessage = "ইমেইল অ্যাকাউন্ট নিবন্ধন সফল হয়েছে (${session.email})"
+                )
+            }
+        }.onFailure { err ->
+            _uiState.update { it.copy(errorMessage = err.message ?: "নিবন্ধন ব্যর্থ হয়েছে") }
+        }
+    }
+
+    fun loginWithEmailPassword(email: String, password: String) {
+        val result = SecureAuthAndPrivacyManager.loginWithEmailPassword(
+            context = appContext,
+            email = email,
+            password = password
+        )
+        result.onSuccess { session ->
+            prefs.edit()
+                .putBoolean("onboarded", true)
+                .putBoolean("guest_mode", false)
+                .putString("display_name", session.displayName)
+                .apply()
+            _uiState.update {
+                it.copy(
+                    hasCompletedOnboarding = true,
+                    isGuestMode = false,
+                    currentUserId = session.userId,
+                    userEmail = session.email,
+                    displayName = session.displayName,
+                    authProvider = session.authProvider,
+                    errorMessage = null,
+                    syncStatusMessage = "সফলভাবে লগইন সম্পন্ন হয়েছে (${session.email})"
+                )
+            }
+        }.onFailure { err ->
+            _uiState.update { it.copy(errorMessage = err.message ?: "লগইন ব্যর্থ হয়েছে") }
+        }
+    }
+
+    fun signOutUserSession() {
+        SecureAuthAndPrivacyManager.signOutLocalSession(appContext)
+        _uiState.update {
+            it.copy(
+                currentUserId = null,
+                userEmail = null,
+                authProvider = "GUEST",
+                isGuestMode = true,
+                syncStatusMessage = "সাইন আউট সম্পন্ন হয়েছে"
+            )
+        }
+    }
+
+    fun updatePrivacySettings(
+        cloudSyncConsent: Boolean,
+        personalizedAlertsConsent: Boolean,
+        dataMinimization: Boolean
+    ) {
+        SecureAuthAndPrivacyManager.updatePrivacyPreferences(
+            context = appContext,
+            cloudSyncConsent = cloudSyncConsent,
+            personalizedAlertsConsent = personalizedAlertsConsent,
+            dataMinimization = dataMinimization
+        )
+        _uiState.update {
+            it.copy(
+                privacyCloudSyncConsent = cloudSyncConsent,
+                privacyPersonalizedAlertsConsent = personalizedAlertsConsent,
+                privacyDataMinimization = dataMinimization,
+                syncStatusMessage = "গোপনীয়তা ও ডেটা সুরক্ষা সেটিংস আপডেট হয়েছে"
+            )
+        }
+    }
+
+    fun exportMyPrivacyData() {
+        val s = _uiState.value
+        val json = SecureAuthAndPrivacyManager.exportUserDataJson(
+            context = appContext,
+            displayName = s.displayName,
+            email = s.userEmail,
+            district = s.selectedDistrict.nameEn,
+            tasbihTotal = s.tasbihAllTimeTotal,
+            bookmarksCount = s.bookmarks.size,
+            downloadedSurahs = s.downloadedSurahIds
+        )
+        _uiState.update {
+            it.copy(
+                exportedUserDataJson = json,
+                syncStatusMessage = "আপনার ব্যক্তিগত ডেটা JSON রিপোর্ট প্রস্তুত করা হয়েছে"
+            )
+        }
+    }
+
+    fun dismissExportedPrivacyData() {
+        _uiState.update { it.copy(exportedUserDataJson = null) }
+    }
+
+    fun deleteAccountAndLocalData() {
+        SecureAuthAndPrivacyManager.deleteAccountAndWipeLocalData(appContext)
+        prefs.edit().clear().apply()
+        _uiState.update {
+            it.copy(
+                currentUserId = null,
+                userEmail = null,
+                displayName = "মুসলিম ব্যবহারকারী",
+                authProvider = "GUEST",
+                isGuestMode = true,
+                bookmarks = emptyList(),
+                pendingSyncQueue = emptyList(),
+                exportedUserDataJson = null,
+                syncStatusMessage = "আপনার অ্যাকাউন্ট ও লোকাল ডেটা সম্পূর্ণ মুছে ফেলা হয়েছে"
+            )
+        }
+    }
+
+    // --- PUSH & PERSONALIZED NOTIFICATION ACTIONS ---
+    fun toggleNotificationPreference(prefKey: String) {
+        val s = _uiState.value
+        when (prefKey) {
+            "new_content" -> {
+                val next = !s.notifyNewContentAlerts
+                prefs.edit().putBoolean("notify_new_content", next).apply()
+                _uiState.update { it.copy(notifyNewContentAlerts = next) }
+            }
+            "important_updates" -> {
+                val next = !s.notifyImportantUpdates
+                prefs.edit().putBoolean("notify_important_updates", next).apply()
+                _uiState.update { it.copy(notifyImportantUpdates = next) }
+            }
+            "personalized_activity" -> {
+                val next = !s.notifyPersonalizedActivity
+                prefs.edit().putBoolean("notify_personalized_activity", next).apply()
+                _uiState.update { it.copy(notifyPersonalizedActivity = next) }
+            }
+        }
+    }
+
+    fun triggerPersonalizedActivityNotification() {
+        val s = _uiState.value
+        val surahName = QuranCatalog.surahs.firstOrNull { it.number == s.lastReadSurahNumber }?.nameBn ?: "আল-ফাতিহা"
+        val item = RuhaniPushNotificationManager.sendNotification(
+            context = appContext,
+            category = NotificationCategory.PERSONALIZED,
+            title = "ব্যক্তিগত আমল রিমাইন্ডার • ${s.displayName}",
+            message = "সর্বশেষ তিলাওয়াত: সূরা $surahName (আয়াত ${s.lastReadAyahNumber})। আজকের তাসবিহ: ${s.tasbihTodayTotal} বার। আপনার দৈনিক আমল অব্যাহত রাখুন!"
+        )
+        _uiState.update {
+            it.copy(
+                notificationFeed = listOf(item) + it.notificationFeed,
+                syncStatusMessage = "ব্যক্তিগত আমল নোটিফিকেশন পাঠানো হয়েছে"
+            )
+        }
+    }
+
+    fun triggerNewContentNotification() {
+        val item = RuhaniPushNotificationManager.sendNotification(
+            context = appContext,
+            category = NotificationCategory.NEW_CONTENT,
+            title = "নতুন কন্টেন্ট ও হিজরি আপডেট • রুহানি",
+            message = "নতুন বাংলা হাদিস অধ্যায়, সূরা ইয়াসিন অফলাইন অডিও এবং আল-আযান হিজরি ক্যালেন্ডার আপডেট যুক্ত হয়েছে।"
+        )
+        _uiState.update {
+            it.copy(
+                notificationFeed = listOf(item) + it.notificationFeed,
+                syncStatusMessage = "নতুন কন্টেন্ট পুশ অ্যালার্ট পাঠানো হয়েছে"
+            )
+        }
+    }
+
+    fun triggerWaqtTestNotification() {
+        val s = _uiState.value
+        val item = RuhaniPushNotificationManager.sendNotification(
+            context = appContext,
+            category = NotificationCategory.WAQT_AZAN,
+            title = "ওয়াক্ত ও আযান অ্যালার্ট: ${s.schedule.nextWaqt.nameBn}",
+            message = "${s.selectedDistrict.nameBn} জেলায় পরবর্তী ওয়াক্ত ${s.schedule.nextWaqt.nameBn} (${s.schedule.remainingHhMmSs} বাকি)।"
+        )
+        _uiState.update {
+            it.copy(
+                notificationFeed = listOf(item) + it.notificationFeed,
+                syncStatusMessage = "ওয়াক্ত ও আযান টেস্ট নোটিফিকেশন পাঠানো হয়েছে"
+            )
+        }
+    }
+
+    fun markAllNotificationsRead() {
+        _uiState.update { state ->
+            state.copy(notificationFeed = state.notificationFeed.map { it.copy(isRead = true) })
         }
     }
 
@@ -806,7 +1557,7 @@ class RuhaniViewModel(
         val currentMap = _uiState.value.salatLogsByDate
         val existing = currentMap[dateKey] ?: SalatLog(
             id = dateKey,
-            userId = authenticatedUserId ?: "local",
+            userId = authenticatedUserId ?: _uiState.value.currentUserId ?: "local",
             dateKey = dateKey
         )
         val updated = when (prayerField) {
@@ -836,13 +1587,25 @@ class RuhaniViewModel(
             .putBoolean("salat_${dateKey}_fasting", updated.fasting)
             .apply()
 
+        val queue = OfflineContentAndSyncManager.enqueuePendingSyncAction(
+            context = appContext,
+            type = "SALAT_LOG",
+            descriptionBn = "সালাত ট্র্যাকার আপডেট ($dateKey • ${prayerField.uppercase()})",
+            payloadJson = "{\"dateKey\":\"$dateKey\",\"field\":\"$prayerField\"}"
+        )
+
         _uiState.update { state ->
-            state.copy(salatLogsByDate = state.salatLogsByDate + (dateKey to updated))
+            state.copy(
+                salatLogsByDate = state.salatLogsByDate + (dateKey to updated),
+                pendingSyncQueue = queue
+            )
         }
 
-        if (authenticatedUserId != null && firestoreRepository != null) {
+        if (authenticatedUserId != null && firestoreRepository != null && _uiState.value.isDeviceOnline) {
             viewModelScope.launch {
                 firestoreRepository.saveSalatLog(updated)
+                val syncedTime = OfflineContentAndSyncManager.markQueueSynchronized(appContext)
+                _uiState.update { it.copy(pendingSyncQueue = emptyList(), lastSyncedLabel = syncedTime) }
             }
         }
     }
@@ -901,6 +1664,12 @@ class RuhaniViewModel(
     override fun onCleared() {
         super.onCleared()
         audioPlayJob?.cancel()
+        releaseMediaPlayer()
+        try {
+            val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            networkCallback?.let { cm?.unregisterNetworkCallback(it) }
+        } catch (_: Exception) {
+        }
         try {
             tts?.stop()
             tts?.shutdown()

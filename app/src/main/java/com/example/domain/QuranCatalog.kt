@@ -53,10 +53,11 @@ enum class MushafMode(val titleBn: String, val titleEn: String) {
 object QuranCatalog {
 
     val qariList = listOf(
-        QariInfo("alafasy", "Mishary Rashid Alafasy", "মিশারি রশিদ আল-আফাসি", "Murattal • High Clarity"),
-        QariInfo("sudais", "Abdur-Rahman as-Sudais", "আব্দুর রহমান আস-সুদাইস", "Haramain • Makkah"),
-        QariInfo("husary", "Mahmoud Khalil Al-Husary", "মাহমুদ খলিল আল-হুসারি", "Tajweed • Muallim"),
-        QariInfo("abdulbasit", "AbdulBaset AbdulSamad", "আব্দুল বাসিত আব্দুস সামাদ", "Mujawwad • Classic")
+        QariInfo("1", "Mishary Rashid Al Afasy", "মিশারি রশিদ আল-আফাসি", "Quran-API #1 • Murattal 128kbps"),
+        QariInfo("2", "Abu Bakr Al Shatri", "আবু বকর আল-শাতরি", "Quran-API #2 • Haramain Style"),
+        QariInfo("3", "Nasser Al Qatami", "নাসের আল-কাতামি", "Quran-API #3 • Emotional Recitation"),
+        QariInfo("4", "Yasser Al Dosari", "ইয়াসির আল-দোসারি", "Quran-API #4 • Makkah Imam"),
+        QariInfo("5", "Hani Ar Rifai", "হানি আর-রিফাই", "Quran-API #5 • High Clarity 192kbps")
     )
 
     val surahs: List<QuranSurah> = listOf(

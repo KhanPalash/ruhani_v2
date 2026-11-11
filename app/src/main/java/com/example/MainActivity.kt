@@ -177,7 +177,9 @@ fun RuhaniAppRoot() {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 topBar = {
-                    if (uiState.activeSubScreen != SubScreen.SURAH_READER) {
+                    if (uiState.activeSubScreen != SubScreen.SURAH_READER &&
+                        uiState.activeSubScreen != SubScreen.QIBLA
+                    ) {
                         RuhaniTopBar(
                             uiState = uiState,
                             onSelectDistrict = ruhaniViewModel::updateDistrict,
@@ -187,7 +189,9 @@ fun RuhaniAppRoot() {
                     }
                 },
                 bottomBar = {
-                    if (uiState.activeSubScreen != SubScreen.SURAH_READER) {
+                    if (uiState.activeSubScreen != SubScreen.SURAH_READER &&
+                        uiState.activeSubScreen != SubScreen.QIBLA
+                    ) {
                         RuhaniBottomNavigationBar(
                             currentTab = uiState.currentTab,
                             isBn = uiState.language == "bn",
@@ -215,6 +219,7 @@ fun RuhaniAppRoot() {
                             onToggleGlobalPlayPause = ruhaniViewModel::toggleGlobalAudioPlayPause,
                             onStepAyahAudio = ruhaniViewModel::stepAyahAudio,
                             onToggleRepeat3x = ruhaniViewModel::toggleAudioRepeat3x,
+                            onToggleAutoAdvance = ruhaniViewModel::toggleAudioAutoAdvance,
                             onToggleTafsir = ruhaniViewModel::toggleTafsirForAyah,
                             onToggleBookmark = ruhaniViewModel::toggleBookmark
                         )
@@ -230,7 +235,8 @@ fun RuhaniAppRoot() {
                             onNewCycle = ruhaniViewModel::startNewTasbihCycle,
                             onToggleVibration = ruhaniViewModel::toggleTasbihVibration,
                             onToggleSound = ruhaniViewModel::toggleTasbihSound,
-                            onSpeakArabic = ruhaniViewModel::speakArabicText
+                            onSpeakArabic = ruhaniViewModel::speakArabicText,
+                            onUpdateTarget = ruhaniViewModel::updateTasbihTarget
                         )
 
                         SubScreen.SALAT_TRACKER, SubScreen.NAWAFIL -> SalatAndQazaTrackerScreen(
@@ -243,7 +249,10 @@ fun RuhaniAppRoot() {
                         SubScreen.DUA_DHIKR -> DuaAndDhikrScreen(
                             uiState = uiState,
                             onBack = { ruhaniViewModel.openSubScreen(SubScreen.NONE) },
-                            onSpeakArabic = ruhaniViewModel::speakArabicText
+                            onSpeakArabic = ruhaniViewModel::speakArabicText,
+                            onIncrementDuaCount = ruhaniViewModel::incrementDuaCount,
+                            onResetDuaCount = ruhaniViewModel::resetDuaCount,
+                            onToggleFavoriteDua = ruhaniViewModel::toggleFavoriteDua
                         )
 
                         SubScreen.QIBLA -> QiblaCompassScreen(
@@ -278,7 +287,8 @@ fun RuhaniAppRoot() {
 
                         SubScreen.HADITH -> HadithCollectionScreen(
                             uiState = uiState,
-                            onBack = { ruhaniViewModel.openSubScreen(SubScreen.NONE) }
+                            onBack = { ruhaniViewModel.openSubScreen(SubScreen.NONE) },
+                            onSpeakArabic = ruhaniViewModel::speakArabicText
                         )
 
                         SubScreen.MOSQUES -> NearbyMosquesScreen(
@@ -288,7 +298,16 @@ fun RuhaniAppRoot() {
 
                         SubScreen.BOOKS -> IslamicBooksScreen(
                             uiState = uiState,
-                            onBack = { ruhaniViewModel.openSubScreen(SubScreen.NONE) }
+                            onBack = { ruhaniViewModel.openSubScreen(SubScreen.NONE) },
+                            onToggleArticleOffline = ruhaniViewModel::toggleOfflineArticleDownload,
+                            onUpdateArticleProgress = ruhaniViewModel::updateArticleReadingProgress,
+                            onPlayCompanionAudio = { surahNo, ayahNo ->
+                                val surah = com.example.domain.QuranCatalog.surahs.firstOrNull { it.number == surahNo }
+                                    ?: com.example.domain.QuranCatalog.surahs.first()
+                                val ayah = surah.ayahs.firstOrNull { it.ayahNumber == ayahNo } ?: surah.ayahs.first()
+                                ruhaniViewModel.playOrPauseAyah(surah, ayah)
+                            },
+                            onSyncOfflineNow = ruhaniViewModel::synchronizeOfflineChangesNow
                         )
 
                         SubScreen.FATWA -> FatwaScreen(
@@ -317,7 +336,20 @@ fun RuhaniAppRoot() {
                             uiState = uiState,
                             onBack = { ruhaniViewModel.openSubScreen(SubScreen.NONE) },
                             onUpdateProfile = ruhaniViewModel::updateProfileDetails,
-                            onSyncNow = ruhaniViewModel::syncProfileToCloud
+                            onSyncNow = ruhaniViewModel::syncProfileToCloud,
+                            onRegisterEmailPassword = ruhaniViewModel::registerWithEmailPassword,
+                            onLoginEmailPassword = ruhaniViewModel::loginWithEmailPassword,
+                            onSignOutSession = ruhaniViewModel::signOutUserSession,
+                            onUpdatePrivacySettings = ruhaniViewModel::updatePrivacySettings,
+                            onExportPrivacyData = ruhaniViewModel::exportMyPrivacyData,
+                            onDismissExportedData = ruhaniViewModel::dismissExportedPrivacyData,
+                            onDeleteAccountAndData = ruhaniViewModel::deleteAccountAndLocalData,
+                            onSynchronizeOfflineQueue = ruhaniViewModel::synchronizeOfflineChangesNow,
+                            onToggleNotificationPref = ruhaniViewModel::toggleNotificationPreference,
+                            onSendPersonalizedAlert = ruhaniViewModel::triggerPersonalizedActivityNotification,
+                            onSendNewContentAlert = ruhaniViewModel::triggerNewContentNotification,
+                            onSendWaqtTestAlert = ruhaniViewModel::triggerWaqtTestNotification,
+                            onMarkAllNotificationsRead = ruhaniViewModel::markAllNotificationsRead
                         )
 
                         SubScreen.SETTINGS -> SettingsScreen(
@@ -336,7 +368,9 @@ fun RuhaniAppRoot() {
                                 MainTab.HOME -> HomeDashboardScreen(
                                     uiState = uiState,
                                     onSelectTab = ruhaniViewModel::selectTab,
-                                    onOpenSubScreen = ruhaniViewModel::openSubScreen
+                                    onOpenSubScreen = ruhaniViewModel::openSubScreen,
+                                    onIncrementTasbih = ruhaniViewModel::incrementTasbih,
+                                    onResetTasbih = ruhaniViewModel::confirmTasbihReset
                                 )
 
                                 MainTab.QURAN -> QuranBrowserScreen(
@@ -398,12 +432,12 @@ private fun RuhaniBottomNavigationBar(
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                        fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.White,
-                    selectedTextColor = NoorMintLuminous,
+                    selectedTextColor = NoorEmeraldPrimary,
                     indicatorColor = NoorEmeraldPrimary,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant

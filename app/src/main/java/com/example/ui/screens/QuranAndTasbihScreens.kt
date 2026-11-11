@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
@@ -43,6 +45,7 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -71,6 +74,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -94,11 +98,17 @@ import androidx.compose.ui.unit.sp
 import com.example.domain.*
 import com.example.ui.RuhaniUiState
 import com.example.ui.theme.AmiriFontFamily
+import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.NoorEmeraldDark
 import com.example.ui.theme.NoorEmeraldPrimary
 import com.example.ui.theme.NoorGoldAccent
 import com.example.ui.theme.NoorMintLuminous
 import com.example.ui.theme.NoorRedAlert
+import com.example.ui.theme.PureBlack
+import com.example.ui.theme.PureWhite
+import com.example.ui.theme.RuhaniHalkaCardBrush
+import com.example.ui.theme.RuhaniHalkaDarkBrush
+import com.example.ui.theme.SignalRed
 import com.example.ui.theme.SpaceGroteskFontFamily
 
 @Composable
@@ -532,6 +542,7 @@ fun SurahReaderScreen(
     onToggleGlobalPlayPause: () -> Unit,
     onStepAyahAudio: (Int) -> Unit,
     onToggleRepeat3x: () -> Unit,
+    onToggleAutoAdvance: () -> Unit = {},
     onToggleTafsir: (Int, Int) -> Unit,
     onToggleBookmark: (QuranSurah, QuranAyah) -> Unit
 ) {
@@ -542,6 +553,21 @@ fun SurahReaderScreen(
     val isBn = uiState.language == "bn"
     var showQariModal by remember { mutableStateOf(false) }
     var showFontModal by remember { mutableStateOf(false) }
+    var showAudioApiModal by remember { mutableStateOf(false) }
+
+    val listState = rememberLazyListState()
+
+    // Auto-scroll to currently playing Ayah as Ayat-by-Ayat audio advances
+    LaunchedEffect(uiState.playingSurahNumber, uiState.playingAyahNumber, uiState.isAudioPlaying) {
+        if (uiState.isAudioPlaying && uiState.playingSurahNumber == surah.number) {
+            val ayahIdx = surah.ayahs.indexOfFirst { it.ayahNumber == uiState.playingAyahNumber }
+            if (ayahIdx >= 0) {
+                // Header card is index 0, Bismillah is index 1, Ayahs start at index 2
+                val targetListIndex = (ayahIdx + 2).coerceAtLeast(0)
+                runCatching { listState.animateScrollToItem(targetListIndex) }
+            }
+        }
+    }
 
     val allSurahs = QuranCatalog.surahs
     val currentSurahIndex = allSurahs.indexOfFirst { it.number == surah.number }.coerceAtLeast(0)
@@ -661,6 +687,7 @@ fun SurahReaderScreen(
 
         // 2. Scrollable Surah Content
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
@@ -744,10 +771,12 @@ fun SurahReaderScreen(
                             }
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = NoorEmeraldPrimary.copy(alpha = 0.25f)
+                                color = NoorEmeraldPrimary.copy(alpha = 0.25f),
+                                modifier = Modifier.clickable { showAudioApiModal = true }
                             ) {
                                 Text(
-                                    text = "● Audio Ready",
+                                    text = if (uiState.isSurahSyncingFromApi) "● Syncing Quran-API..."
+                                    else "● Quran-API Ayat Audio (${surah.ayahs.size}/${surah.totalAyahs})",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = NoorMintLuminous,
@@ -859,8 +888,14 @@ fun SurahReaderScreen(
                                                 tint = NoorMintLuminous,
                                                 modifier = Modifier.size(12.dp)
                                             )
+                                            val badgeStatus = when {
+                                                uiState.isAudioBuffering && uiState.isAudioPlaying -> "BUFFERING..."
+                                                uiState.isAudioPlaying && uiState.audioRepeat3x -> "PLAYING • ${uiState.ayahRepeatIteration}/3"
+                                                uiState.isAudioPlaying -> "PLAYING • QURAN-API"
+                                                else -> "SELECTED"
+                                            }
                                             Text(
-                                                text = if (uiState.isAudioPlaying) "PLAYING" else "SELECTED",
+                                                text = badgeStatus,
                                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                                 fontWeight = FontWeight.Bold,
                                                 color = NoorMintLuminous
@@ -897,7 +932,7 @@ fun SurahReaderScreen(
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Text(
-                                            text = if (isPlayingThisAyah && uiState.isAudioPlaying) "Playing" else "Listen",
+                                            text = if (isPlayingThisAyah && uiState.isAudioPlaying) "Pause" else "Listen",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = if (isPlayingThisAyah && uiState.isAudioPlaying) Color.White
@@ -960,6 +995,49 @@ fun SurahReaderScreen(
                                         contentDescription = "Share Ayah",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Inline Ayat-by-Ayat Audio Progress Bar when this Ayah is active
+                        AnimatedVisibility(visible = isPlayingThisAyah) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = NoorEmeraldPrimary.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 10.dp)
+                                    .clickable { showAudioApiModal = true }
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "🎙 ${if (isBn) uiState.selectedQari.nameBn else uiState.selectedQari.nameEn}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = NoorMintLuminous
+                                        )
+                                        Text(
+                                            text = formatAudioTime(uiState.audioCurrentPositionMs, uiState.audioDurationMs),
+                                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LinearProgressIndicator(
+                                        progress = { uiState.audioProgressFraction },
+                                        color = NoorMintLuminous,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(4.dp)
+                                            .clip(RoundedCornerShape(50))
                                     )
                                 }
                             }
@@ -1145,7 +1223,7 @@ fun SurahReaderScreen(
             }
         }
 
-        // 3. Persistent Bottom Qari Audio Player Bar
+        // 3. Persistent Bottom Qari Audio Player Bar (The-Quran-Project/Quran-API)
         Surface(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 8.dp,
@@ -1189,13 +1267,23 @@ fun SurahReaderScreen(
                             )
                         }
                         Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Surah ${uiState.playingSurahNumber ?: surah.number}:${uiState.playingAyahNumber ?: 1}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "• ${formatAudioTime(uiState.audioCurrentPositionMs, uiState.audioDurationMs)}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                    color = NoorMintLuminous
+                                )
+                            }
                             Text(
-                                text = "Surah ${uiState.playingSurahNumber ?: surah.number} • Ayah ${uiState.playingAyahNumber ?: 1}",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = if (isBn) uiState.selectedQari.nameBn else uiState.selectedQari.nameEn,
+                                text = "${if (isBn) uiState.selectedQari.nameBn else uiState.selectedQari.nameEn} (Tap to change)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1204,12 +1292,35 @@ fun SurahReaderScreen(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        // Auto-Next Ayat-by-Ayat Toggle
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (uiState.audioAutoAdvance) NoorEmeraldPrimary.copy(alpha = 0.2f)
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(
+                                1.dp,
+                                if (uiState.audioAutoAdvance) NoorEmeraldPrimary else Color.Transparent
+                            ),
+                            modifier = Modifier
+                                .testTag("quran_audio_auto_advance_btn")
+                                .clickable { onToggleAutoAdvance() }
+                        ) {
+                            Text(
+                                text = if (uiState.audioAutoAdvance) "Auto" else "1x",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.audioAutoAdvance) NoorMintLuminous
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp)
+                            )
+                        }
+
                         // Repeat 3x Hifz Toggle
                         IconButton(
                             onClick = onToggleRepeat3x,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Repeat,
@@ -1220,9 +1331,24 @@ fun SurahReaderScreen(
                             )
                         }
 
+                        // API Stream Details Modal Button
+                        IconButton(
+                            onClick = { showAudioApiModal = true },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .testTag("quran_audio_api_info_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Quran-API Audio Info",
+                                tint = NoorMintLuminous,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
                         IconButton(
                             onClick = { onStepAyahAudio(-1) },
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipPrevious,
@@ -1247,7 +1373,7 @@ fun SurahReaderScreen(
 
                         IconButton(
                             onClick = { onStepAyahAudio(1) },
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
@@ -1265,7 +1391,7 @@ fun SurahReaderScreen(
             onDismissRequest = { showQariModal = false },
             title = {
                 Text(
-                    text = if (isBn) "ক্বারী নির্বাচন করুন (Select Qari)" else "Select Quran Reciter (Qari)",
+                    text = if (isBn) "ক্বারী নির্বাচন করুন (The-Quran-Project API)" else "Select Reciter (The-Quran-Project API)",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1322,6 +1448,78 @@ fun SurahReaderScreen(
             }
         )
     }
+
+    if (showAudioApiModal) {
+        AlertDialog(
+            onDismissRequest = { showAudioApiModal = false },
+            title = {
+                Text(
+                    text = "Quran-API Ayat-by-Ayat Audio",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Powered by The-Quran-Project/Quran-API (quranapi.pages.dev)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NoorMintLuminous,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Active Verse: Surah ${uiState.playingSurahNumber ?: surah.number}, Ayah ${uiState.playingAyahNumber ?: 1}",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Reciter (#${uiState.selectedQari.id}): ${uiState.selectedQari.nameEn}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                            Text(
+                                text = "Ayah JSON Endpoint:\n${uiState.currentAyahApiEndpoint}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Primary MP3 Stream (Quran-Audio CDN):\n${uiState.currentAyahAudioUrl}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                color = NoorMintLuminous
+                            )
+                            Text(
+                                text = "Mirror MP3 Stream (EveryAyah):\n${uiState.currentAyahOriginalUrl}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAudioApiModal = false }) {
+                    Text(if (isBn) "ঠিক আছে" else "Done")
+                }
+            }
+        )
+    }
+}
+
+private fun formatAudioTime(positionMs: Int, durationMs: Int): String {
+    val posSec = (positionMs / 1000).coerceAtLeast(0)
+    val durSec = (durationMs / 1000).coerceAtLeast(0)
+    val posStr = "%d:%02d".format(posSec / 60, posSec % 60)
+    val durStr = "%d:%02d".format(durSec / 60, durSec % 60)
+    return if (durSec > 0) "$posStr / $durStr" else posStr
 }
 
 @Composable
@@ -1362,7 +1560,8 @@ fun DigitalTasbihScreen(
     onNewCycle: () -> Unit,
     onToggleVibration: () -> Unit,
     onToggleSound: () -> Unit,
-    onSpeakArabic: (String) -> Unit
+    onSpeakArabic: (String) -> Unit,
+    onUpdateTarget: (Int) -> Unit = {}
 ) {
     BackHandler { onBack() }
 
@@ -1372,6 +1571,7 @@ fun DigitalTasbihScreen(
         targetValue = (uiState.tasbihCurrentCount.toFloat() / uiState.tasbihTarget.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f),
         label = "tasbih_ring_progress"
     )
+    val targetOptions = remember { listOf(33, 99, 100, 1000) }
 
     LazyColumn(
         modifier = Modifier
@@ -1395,26 +1595,28 @@ fun DigitalTasbihScreen(
                     IconButton(
                         onClick = onBack,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(42.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(EmeraldPrimary.copy(alpha = 0.16f))
+                            .border(1.dp, EmeraldPrimary.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                             .testTag("tasbih_back_button")
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = EmeraldPrimary
                         )
                     }
                     Column {
                         Text(
-                            text = if (isBn) "ডিজিটাল তাসবীহ" else "Digital Tasbih",
+                            text = if (isBn) "ডিজিটাল তাসবীহ কাউন্টার" else "Digital Tasbih Counter",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.ExtraBold
                         )
                         Text(
-                            text = if (isBn) "যিকির ও গণনা • Dhikr Counter" else "Dhikr Counter • যিকির ও গণনা",
+                            text = if (isBn) "লোকাল মেমরিতে স্বয়ংক্রিয় সংরক্ষিত • Saved Locally" else "Daily Zikr Tracker • Saved Locally",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = EmeraldPrimary
                         )
                     }
                 }
@@ -1423,18 +1625,23 @@ fun DigitalTasbihScreen(
                     IconButton(
                         onClick = onToggleVibration,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(40.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(
-                                if (uiState.tasbihVibrationEnabled) NoorEmeraldPrimary.copy(alpha = 0.2f)
+                                if (uiState.tasbihVibrationEnabled) EmeraldPrimary.copy(alpha = 0.22f)
                                 else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .border(
+                                1.dp,
+                                if (uiState.tasbihVibrationEnabled) EmeraldPrimary else Color.Transparent,
+                                RoundedCornerShape(10.dp)
                             )
                             .testTag("tasbih_vibration_toggle")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Vibration,
                             contentDescription = "Vibration Toggle",
-                            tint = if (uiState.tasbihVibrationEnabled) NoorMintLuminous
+                            tint = if (uiState.tasbihVibrationEnabled) EmeraldPrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1443,11 +1650,16 @@ fun DigitalTasbihScreen(
                     IconButton(
                         onClick = onToggleSound,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(40.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(
-                                if (uiState.tasbihSoundEnabled) NoorEmeraldPrimary.copy(alpha = 0.2f)
+                                if (uiState.tasbihSoundEnabled) EmeraldPrimary.copy(alpha = 0.22f)
                                 else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .border(
+                                1.dp,
+                                if (uiState.tasbihSoundEnabled) EmeraldPrimary else Color.Transparent,
+                                RoundedCornerShape(10.dp)
                             )
                             .testTag("tasbih_sound_toggle")
                     ) {
@@ -1455,7 +1667,7 @@ fun DigitalTasbihScreen(
                             imageVector = if (uiState.tasbihSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp
                             else Icons.AutoMirrored.Filled.VolumeOff,
                             contentDescription = "Sound Toggle",
-                            tint = if (uiState.tasbihSoundEnabled) NoorMintLuminous
+                            tint = if (uiState.tasbihSoundEnabled) EmeraldPrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1464,133 +1676,203 @@ fun DigitalTasbihScreen(
             }
         }
 
-        // 2. Selected Dhikr Display Card (Matching digital_tasbih_dark/screen.png)
+        // 2. Selected Dhikr Display Card with #14a673 Halka Gradient & #f02828 Cycle Badge
         item {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(RuhaniHalkaDarkBrush)
+                    .border(1.5.dp, EmeraldPrimary.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
+                    .padding(18.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = NoorEmeraldPrimary.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Target: ${uiState.tasbihTarget} • Cycle ${uiState.tasbihCycle}/${uiState.tasbihTotalCycles}",
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
-                                fontWeight = FontWeight.Bold,
-                                color = NoorMintLuminous,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = EmeraldPrimary.copy(alpha = 0.25f),
+                                border = BorderStroke(1.dp, EmeraldPrimary)
+                            ) {
+                                Text(
+                                    text = if (isBn) "লক্ষ্য: ${uiState.tasbihTarget}" else "Target: ${uiState.tasbihTarget}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                    fontWeight = FontWeight.Bold,
+                                    color = PureWhite,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = SignalRed
+                            ) {
+                                Text(
+                                    text = "Cycle ${uiState.tasbihCycle}/${uiState.tasbihTotalCycles}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                    fontWeight = FontWeight.Bold,
+                                    color = PureWhite,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
                         }
 
                         IconButton(
                             onClick = { onSpeakArabic(preset.arabic) },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(PureWhite.copy(alpha = 0.14f))
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                                 contentDescription = "Listen Pronunciation",
-                                tint = NoorMintLuminous,
+                                tint = PureWhite,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = preset.arabic,
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontFamily = AmiriFontFamily,
-                            fontSize = 36.sp
+                            fontSize = 38.sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = PureWhite,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "${preset.transliteration} • ${preset.bangla}",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = NoorMintLuminous
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PureWhite
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (isBn) "অর্থ: “${preset.meaningBn}” (${preset.meaningEn})"
                         else "“${preset.meaningEn}” (${preset.meaningBn})",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = PureWhite.copy(alpha = 0.85f),
                         textAlign = TextAlign.Center
                     )
                 }
             }
         }
 
-        // 3. Preset Dhikr Selector Strip
+        // 3. Preset Dhikr Selector Strip (with per-Zikr locally saved count badge)
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                RuhaniContentCatalog.tasbihPresets.forEach { itemPreset ->
-                    val selected = itemPreset.id == preset.id
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (selected) NoorEmeraldPrimary else MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(
-                            1.dp,
-                            if (selected) NoorEmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                        ),
-                        modifier = Modifier
-                            .testTag("tasbih_preset_${itemPreset.id}")
-                            .clickable { onSelectPreset(itemPreset) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isBn) "দৈনিক যিকির নির্বাচন করুন (Select Zikr):" else "Select Daily Zikr Preset:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        targetOptions.forEach { targetVal ->
+                            val isSelectedTarget = uiState.tasbihTarget == targetVal
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (isSelectedTarget) SignalRed else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelectedTarget) SignalRed else EmeraldPrimary.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier
+                                    .clickable { onUpdateTarget(targetVal) }
+                                    .testTag("tasbih_target_$targetVal")
+                            ) {
+                                Text(
+                                    text = targetVal.toString(),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelectedTarget) PureWhite else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RuhaniContentCatalog.tasbihPresets.forEach { itemPreset ->
+                        val selected = itemPreset.id == preset.id
+                        val savedForPreset = if (selected) uiState.tasbihCurrentCount
+                        else (uiState.tasbihCountsByPreset[itemPreset.id] ?: 0)
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (selected) EmeraldPrimary else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(
+                                1.dp,
+                                if (selected) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier
+                                .testTag("tasbih_preset_${itemPreset.id}")
+                                .clickable { onSelectPreset(itemPreset) }
                         ) {
-                            Text(
-                                text = if (isBn) itemPreset.bangla else itemPreset.transliteration,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = itemPreset.defaultTarget.toString(),
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
-                                color = if (selected) Color.White.copy(alpha = 0.85f) else NoorMintLuminous
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = if (isBn) itemPreset.bangla else itemPreset.transliteration,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (selected) PureWhite else MaterialTheme.colorScheme.onSurface
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = if (selected) PureBlack.copy(alpha = 0.28f) else EmeraldPrimary.copy(alpha = 0.14f)
+                                ) {
+                                    Text(
+                                        text = "$savedForPreset/${itemPreset.defaultTarget}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (selected) PureWhite else EmeraldPrimary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        // 4. Giant Circular Progress Ring & Tactile Tap Target
+        // 4. Giant Visual Display of Current Count & Circular Progress Ring
         item {
             Box(
                 modifier = Modifier
-                    .size(250.dp)
-                    .padding(8.dp),
+                    .size(256.dp)
+                    .padding(6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 val trackColor = MaterialTheme.colorScheme.surfaceVariant
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    val strokeWidth = 12.dp.toPx()
+                    val strokeWidth = 14.dp.toPx()
                     drawArc(
                         color = trackColor,
                         startAngle = 0f,
@@ -1599,38 +1881,59 @@ fun DigitalTasbihScreen(
                         style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                     )
                     drawArc(
-                        color = NoorEmeraldPrimary,
+                        color = EmeraldPrimary,
                         startAngle = -90f,
                         sweepAngle = 360f * progress,
                         useCenter = false,
                         style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                     )
+                    if (progress >= 0.98f) {
+                        drawArc(
+                            color = SignalRed,
+                            startAngle = -90f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
                 }
 
-                // Inner Tactile Circle Button
+                // Inner Tactile Circle Display & Tap Target
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.5.dp, NoorEmeraldPrimary.copy(alpha = 0.4f)),
-                    tonalElevation = 6.dp,
+                    border = BorderStroke(2.dp, EmeraldPrimary.copy(alpha = 0.6f)),
+                    tonalElevation = 8.dp,
                     modifier = Modifier
-                        .size(204.dp)
+                        .size(208.dp)
                         .clip(CircleShape)
                         .testTag("tasbih_tap_button")
                         .clickable { onIncrement() }
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(RuhaniHalkaCardBrush),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = if (isBn) "বর্তমান গণনা • CURRENT COUNT" else "CURRENT COUNT",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier.testTag("tasbih_count_display")
+                        ) {
                             Text(
                                 text = uiState.tasbihCurrentCount.toString(),
                                 style = MaterialTheme.typography.displayLarge.copy(
                                     fontFamily = SpaceGroteskFontFamily,
-                                    fontSize = 54.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 56.sp,
+                                    fontWeight = FontWeight.ExtraBold
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -1638,34 +1941,34 @@ fun DigitalTasbihScreen(
                                 text = " /${uiState.tasbihTarget}",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontFamily = SpaceGroteskFontFamily,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.Bold
                                 ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = SignalRed,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = NoorEmeraldPrimary.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.35f))
+                            color = EmeraldPrimary,
+                            border = BorderStroke(1.dp, EmeraldPrimary)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.TouchApp,
                                     contentDescription = null,
-                                    tint = NoorMintLuminous,
+                                    tint = PureWhite,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
-                                    text = if (isBn) "ট্যাপ করুন" else "TAP TO COUNT",
+                                    text = if (isBn) "ট্যাপ করে গণনা করুন" else "TAP TO COUNT",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = NoorMintLuminous
+                                    color = PureWhite
                                 )
                             }
                         }
@@ -1674,7 +1977,98 @@ fun DigitalTasbihScreen(
             }
         }
 
-        // 5. Today's Total & All-Time Total Cards
+        // 5. Explicit Increment (+1) & Reset Action Buttons (#14a673 & #f02828)
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Dedicated Increment Button (#14a673)
+                    Button(
+                        onClick = onIncrement,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = EmeraldPrimary,
+                            contentColor = PureWhite
+                        ),
+                        modifier = Modifier
+                            .weight(1.35f)
+                            .height(54.dp)
+                            .testTag("tasbih_increment_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Increment Zikr",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isBn) "+১ যিকির গণনা (Increment)" else "+1 Increment Zikr",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = PureWhite
+                        )
+                    }
+
+                    // Dedicated Reset Button (#f02828)
+                    Button(
+                        onClick = onRequestReset,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SignalRed,
+                            contentColor = PureWhite
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                            .testTag("tasbih_reset_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Reset Zikr",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isBn) "রিসেট (Reset)" else "Reset",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = PureWhite
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onNewCycle,
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .testTag("tasbih_new_cycle_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isBn) "নতুন চক্র শুরু করুন (Start New Cycle • ${uiState.tasbihCycle}/${uiState.tasbihTotalCycles})"
+                        else "Start New Cycle (${uiState.tasbihCycle}/${uiState.tasbihTotalCycles})",
+                        color = EmeraldPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // 6. Today's Total & All-Time Total Local Progress Cards
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1683,12 +2077,16 @@ fun DigitalTasbihScreen(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.45f)),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .background(RuhaniHalkaCardBrush)
+                            .padding(14.dp)
+                    ) {
                         Text(
-                            text = if (isBn) "আজকের মোট (Today's Total)" else "Today's Total • আজকের মোট",
+                            text = if (isBn) "আজকের মোট (Today's Saved)" else "Today's Saved Total",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1701,13 +2099,14 @@ fun DigitalTasbihScreen(
                                 text = uiState.tasbihTodayTotal.toString(),
                                 style = MaterialTheme.typography.headlineSmall.copy(
                                     fontFamily = SpaceGroteskFontFamily,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                color = EmeraldPrimary
                             )
                             Text(
-                                text = "dhikr",
+                                text = "zikr",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = NoorMintLuminous,
+                                color = EmeraldPrimary,
                                 modifier = Modifier.padding(bottom = 3.dp)
                             )
                         }
@@ -1717,12 +2116,16 @@ fun DigitalTasbihScreen(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                    border = BorderStroke(1.dp, SignalRed.copy(alpha = 0.45f)),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .background(RuhaniHalkaCardBrush)
+                            .padding(14.dp)
+                    ) {
                         Text(
-                            text = if (isBn) "সর্বমোট (All-Time Total)" else "All-Time Total • সর্বমোট",
+                            text = if (isBn) "সর্বমোট সংরক্ষিত (All-Time)" else "All-Time Saved Total",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1735,56 +2138,18 @@ fun DigitalTasbihScreen(
                                 text = "%,d".format(uiState.tasbihAllTimeTotal),
                                 style = MaterialTheme.typography.headlineSmall.copy(
                                     fontFamily = SpaceGroteskFontFamily,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "total",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = SignalRed,
                                 modifier = Modifier.padding(bottom = 3.dp)
                             )
                         }
                     }
-                }
-            }
-        }
-
-        // 6. Reset & New Cycle Action Buttons
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onRequestReset,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .testTag("tasbih_reset_button")
-                ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isBn) "রিসেট করুন" else "Reset")
-                }
-
-                Button(
-                    onClick = onNewCycle,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NoorEmeraldPrimary),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .testTag("tasbih_new_cycle_button")
-                ) {
-                    Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isBn) "নতুন চক্র (New Cycle)" else "New Cycle",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         }
@@ -1802,21 +2167,25 @@ fun DigitalTasbihScreen(
             },
             text = {
                 Text(
-                    text = if (isBn) "আপনার বর্তমান গণনা (${uiState.tasbihCurrentCount}) শূন্য করা হবে। সর্বমোট গণনা সুরক্ষিত থাকবে।"
-                    else "Your current cycle count (${uiState.tasbihCurrentCount}) will be reset to 0. Your all-time total will be preserved."
+                    text = if (isBn) "আপনার বর্তমান গণনা (${uiState.tasbihCurrentCount}) শূন্য করা হবে এবং লোকাল মেমরিতে আপডেট হবে। সর্বমোট গণনা সুরক্ষিত থাকবে।"
+                    else "Your current cycle count (${uiState.tasbihCurrentCount}) will be reset to 0 and saved locally. Your all-time total will be preserved."
                 )
             },
             confirmButton = {
                 Button(
                     onClick = onConfirmReset,
-                    colors = ButtonDefaults.buttonColors(containerColor = NoorRedAlert)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SignalRed,
+                        contentColor = PureWhite
+                    ),
+                    modifier = Modifier.testTag("tasbih_confirm_reset_button")
                 ) {
-                    Text(if (isBn) "রিসেট নিশ্চিত করুন" else "Reset Now", color = Color.White)
+                    Text(if (isBn) "রিসেট নিশ্চিত করুন" else "Reset Now", color = PureWhite, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissReset) {
-                    Text(if (isBn) "বাতিল" else "Cancel")
+                    Text(if (isBn) "বাতিল" else "Cancel", color = EmeraldPrimary)
                 }
             }
         )

@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Calculate
@@ -48,7 +49,9 @@ import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.QuestionAnswer
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TouchApp
@@ -56,6 +59,7 @@ import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.WbTwilight
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -93,12 +97,19 @@ import com.example.domain.*
 import com.example.ui.MainTab
 import com.example.ui.RuhaniUiState
 import com.example.ui.SubScreen
+import com.example.ui.theme.AmiriFontFamily
+import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.NoorAmberWarning
 import com.example.ui.theme.NoorEmeraldDark
 import com.example.ui.theme.NoorEmeraldPrimary
 import com.example.ui.theme.NoorGoldAccent
 import com.example.ui.theme.NoorMintLuminous
 import com.example.ui.theme.NoorRedAlert
+import com.example.ui.theme.PureBlack
+import com.example.ui.theme.PureWhite
+import com.example.ui.theme.RuhaniHalkaCardBrush
+import com.example.ui.theme.RuhaniHalkaDarkBrush
+import com.example.ui.theme.SignalRed
 import com.example.ui.theme.SpaceGroteskFontFamily
 
 data class EssentialFeatureCardModel(
@@ -126,7 +137,7 @@ fun RuhaniTopBar(
     val isBn = uiState.language == "bn"
 
     Surface(
-        color = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
+        color = MaterialTheme.colorScheme.background,
         tonalElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -134,6 +145,7 @@ fun RuhaniTopBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(RuhaniHalkaCardBrush)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -145,34 +157,43 @@ fun RuhaniTopBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(40.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 Brush.linearGradient(
-                                    listOf(NoorEmeraldPrimary, NoorEmeraldDark)
+                                    listOf(EmeraldPrimary, Color(0xFF0A5C3F))
                                 )
-                            ),
+                            )
+                            .border(1.dp, PureWhite.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.NightlightRound,
                             contentDescription = "Ruhani Logo",
-                            tint = Color.White,
+                            tint = PureWhite,
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Text(
-                        text = if (isBn) "রুহানি" else "Ruhani",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Column {
+                        Text(
+                            text = if (isBn) "রুহানি" else "Ruhani",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "#14A673 • NOOR EDITION",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary
+                        )
+                    }
 
                     // District Pill
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                        color = EmeraldPrimary.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.55f)),
                         modifier = Modifier
                             .testTag("district_selector_pill")
                             .clickable { showDistrictModal = true }
@@ -185,18 +206,19 @@ fun RuhaniTopBar(
                             Icon(
                                 imageVector = Icons.Default.LocationOn,
                                 contentDescription = "Location",
-                                tint = NoorEmeraldPrimary,
+                                tint = SignalRed,
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = if (isBn) uiState.selectedDistrict.nameBn else uiState.selectedDistrict.nameEn,
                                 style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Select District",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = EmeraldPrimary,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -214,12 +236,13 @@ fun RuhaniTopBar(
                             .size(38.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(1.dp, EmeraldPrimary.copy(alpha = 0.35f), CircleShape)
                             .testTag("top_settings_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = EmeraldPrimary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -228,8 +251,8 @@ fun RuhaniTopBar(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(NoorEmeraldPrimary.copy(alpha = 0.2f))
-                            .border(1.dp, NoorEmeraldPrimary.copy(alpha = 0.5f), CircleShape)
+                            .background(SignalRed)
+                            .border(1.5.dp, PureWhite.copy(alpha = 0.7f), CircleShape)
                             .testTag("top_profile_button")
                             .clickable { onOpenProfile() },
                         contentAlignment = Alignment.Center
@@ -238,13 +261,13 @@ fun RuhaniTopBar(
                         Text(
                             text = initials.ifEmpty { "R" },
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = NoorMintLuminous
+                            fontWeight = FontWeight.ExtraBold,
+                            color = PureWhite
                         )
                     }
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+            HorizontalDivider(color = EmeraldPrimary.copy(alpha = 0.3f))
         }
     }
 
@@ -334,7 +357,9 @@ fun DistrictPickerDialog(
 fun HomeDashboardScreen(
     uiState: RuhaniUiState,
     onSelectTab: (MainTab) -> Unit,
-    onOpenSubScreen: (SubScreen) -> Unit
+    onOpenSubScreen: (SubScreen) -> Unit,
+    onIncrementTasbih: () -> Unit = {},
+    onResetTasbih: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val schedule = uiState.schedule
@@ -404,7 +429,8 @@ fun HomeDashboardScreen(
                 titleBn = "কিবলা কম্পাস",
                 subtitleEn = "${uiState.selectedDistrict.qiblaBearingDeg.toInt()}° West from ${uiState.selectedDistrict.nameEn}",
                 subtitleBn = "${uiState.selectedDistrict.nameBn} থেকে ${uiState.selectedDistrict.qiblaBearingDeg.toInt()}° পশ্চিম",
-                badgeText = null,
+                badgeText = "AlAdhan API",
+                badgeIsEmerald = true,
                 icon = Icons.Default.Explore,
                 targetSubScreen = SubScreen.QIBLA
             ),
@@ -619,12 +645,12 @@ fun HomeDashboardScreen(
             }
         }
 
-        // 2. Current Waqt Hero Card + 5-Waqt Horizontal Strip
+        // 2. Current Waqt Hero Card + 5-Waqt Horizontal Strip (#14a673 Halka Gradient + #f02828 Accent)
         item {
             Card(
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = BorderStroke(1.dp, NoorEmeraldPrimary.copy(alpha = 0.4f)),
+                border = BorderStroke(1.5.dp, EmeraldPrimary.copy(alpha = 0.65f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("hero_current_waqt_card")
@@ -633,15 +659,7 @@ fun HomeDashboardScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    Color(0xFF153529),
-                                    Color(0xFF10241D),
-                                    Color(0xFF0D1714)
-                                )
-                            )
-                        )
+                        .background(RuhaniHalkaDarkBrush)
                 ) {
                     // Subtle decorative Mosque Hero Image overlay in corner
                     Image(
@@ -893,6 +911,255 @@ fun HomeDashboardScreen(
                                 color = if (isCurrent) NoorMintLuminous else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        // 2B. Interactive Digital Tasbih & Categorized Dua Spotlight Row (#14a673 Halka Gradient + #f02828 Reset)
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Quick Digital Tasbih Counter Widget
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.5.dp, EmeraldPrimary.copy(alpha = 0.55f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("home_quick_tasbih_widget")
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .background(RuhaniHalkaCardBrush)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = EmeraldPrimary.copy(alpha = 0.2f),
+                                        border = BorderStroke(1.dp, EmeraldPrimary)
+                                    ) {
+                                        Text(
+                                            text = if (isBn) "ডিজিটাল তাসবীহ • লোকাল সেভ" else "Digital Tasbih • Local Save",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = EmeraldPrimary,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = SignalRed
+                                    ) {
+                                        Text(
+                                            text = if (isBn) "আজ: ${uiState.tasbihTodayTotal}" else "Today: ${uiState.tasbihTodayTotal}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = PureWhite,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "${uiState.selectedTasbihPreset.arabic} • ${if (isBn) uiState.selectedTasbihPreset.titleBn else uiState.selectedTasbihPreset.titleEn}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            // Visual Display of Current Count
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = PureBlack,
+                                border = BorderStroke(1.5.dp, EmeraldPrimary),
+                                modifier = Modifier
+                                    .clickable { onOpenSubScreen(SubScreen.TASBIH) }
+                                    .testTag("home_tasbih_count_badge")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    Text(
+                                        text = uiState.tasbihCurrentCount.toString(),
+                                        style = MaterialTheme.typography.headlineSmall.copy(
+                                            fontFamily = SpaceGroteskFontFamily,
+                                            fontWeight = FontWeight.ExtraBold
+                                        ),
+                                        color = PureWhite
+                                    )
+                                    Text(
+                                        text = "/${uiState.tasbihTarget}",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = SpaceGroteskFontFamily,
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        color = SignalRed,
+                                        modifier = Modifier.padding(bottom = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onIncrementTasbih,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = EmeraldPrimary,
+                                    contentColor = PureWhite
+                                ),
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(44.dp)
+                                    .testTag("home_tasbih_increment_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Increment Tasbih",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isBn) "+১ গণনা (Count)" else "+1 Count",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = PureWhite
+                                )
+                            }
+
+                            Button(
+                                onClick = onResetTasbih,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SignalRed,
+                                    contentColor = PureWhite
+                                ),
+                                modifier = Modifier
+                                    .weight(0.85f)
+                                    .height(44.dp)
+                                    .testTag("home_tasbih_reset_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Reset Tasbih",
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isBn) "রিসেট" else "Reset",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = PureWhite
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = { onOpenSubScreen(SubScreen.TASBIH) },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, EmeraldPrimary),
+                                modifier = Modifier
+                                    .weight(0.9f)
+                                    .height(44.dp)
+                            ) {
+                                Text(
+                                    text = if (isBn) "পূর্ণ স্ক্রিন" else "Full View",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Quick Categorized Duas & Search Spotlight Card
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.45f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("home_categorized_duas_spotlight")
+                        .clickable { onOpenSubScreen(SubScreen.DUA_DHIKR) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .background(RuhaniHalkaCardBrush)
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(EmeraldPrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Search Categorized Duas",
+                                    tint = PureWhite
+                                )
+                            }
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (isBn) "ক্যাটাগরি ও উপলক্ষ ভিত্তিক দোয়া খুঁজুন" else "Categorized Duas & Occasion Search",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = SignalRed
+                                    ) {
+                                        Text(
+                                            text = "${RuhaniContentCatalog.duas.size} Duas",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                            fontWeight = FontWeight.Bold,
+                                            color = PureWhite,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = if (isBn) "সকাল-সন্ধ্যা, সালাত, ঘুম, সফর, অসুস্থতা ও ইফতার • সার্চ বার সহ"
+                                    else "Filter by name or occasion: Morning, Salat, Sleep, Travel, Ruqyah & Iftar",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Open Duas",
+                            tint = EmeraldPrimary
+                        )
                     }
                 }
             }
@@ -1157,12 +1424,16 @@ private fun EssentialServiceGridCard(
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
         modifier = modifier
             .testTag("feature_card_${feature.id}")
             .clickable { onClick() }
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(
+            modifier = Modifier
+                .background(RuhaniHalkaCardBrush)
+                .padding(14.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1172,28 +1443,28 @@ private fun EssentialServiceGridCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(NoorEmeraldPrimary.copy(alpha = 0.14f))
-                        .border(1.dp, NoorEmeraldPrimary.copy(alpha = 0.28f), RoundedCornerShape(12.dp)),
+                        .background(EmeraldPrimary.copy(alpha = 0.16f))
+                        .border(1.dp, EmeraldPrimary.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = feature.icon,
                         contentDescription = feature.titleEn,
-                        tint = NoorMintLuminous,
+                        tint = EmeraldPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
                 if (feature.badgeText != null) {
                     val badgeBg = when {
-                        feature.badgeIsRed -> NoorRedAlert
-                        feature.badgeIsEmerald -> NoorEmeraldPrimary.copy(alpha = 0.18f)
-                        else -> MaterialTheme.colorScheme.surfaceVariant
+                        feature.badgeIsRed -> SignalRed
+                        feature.badgeIsEmerald -> EmeraldPrimary
+                        else -> EmeraldPrimary.copy(alpha = 0.16f)
                     }
                     val badgeFg = when {
-                        feature.badgeIsRed -> Color.White
-                        feature.badgeIsEmerald -> NoorMintLuminous
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        feature.badgeIsRed -> PureWhite
+                        feature.badgeIsEmerald -> PureWhite
+                        else -> EmeraldPrimary
                     }
                     Surface(
                         shape = RoundedCornerShape(6.dp),
@@ -1214,7 +1485,7 @@ private fun EssentialServiceGridCard(
             Text(
                 text = if (isBn) feature.titleBn else feature.titleEn,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1222,7 +1493,8 @@ private fun EssentialServiceGridCard(
             Text(
                 text = if (isBn) feature.titleEn else feature.titleBn,
                 style = MaterialTheme.typography.labelSmall,
-                color = NoorMintLuminous,
+                fontWeight = FontWeight.SemiBold,
+                color = EmeraldPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

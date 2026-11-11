@@ -7,55 +7,54 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val NoorDarkColorScheme = darkColorScheme(
-    primary = EmeraldBright,
-    onPrimary = Color(0xFF003824),
-    primaryContainer = EmeraldPrimary,
-    onPrimaryContainer = Color.White,
-    secondary = EmeraldPrimary,
-    onSecondary = Color.White,
+    primary = EmeraldPrimary,
+    onPrimary = PureWhite,
+    primaryContainer = EmeraldDarkContainer,
+    onPrimaryContainer = PureWhite,
+    secondary = EmeraldBright,
+    onSecondary = PureBlack,
     secondaryContainer = NoorSurface3,
-    onSecondaryContainer = EmeraldBright,
+    onSecondaryContainer = PureWhite,
     tertiary = SignalRed,
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFF3B1214),
-    onTertiaryContainer = Color(0xFFFFB4AB),
-    background = NoorCanvas,
-    onBackground = NoorTextPrimary,
+    onTertiary = PureWhite,
+    tertiaryContainer = SignalRedDark,
+    onTertiaryContainer = PureWhite,
+    background = PureBlack,
+    onBackground = PureWhite,
     surface = NoorSurface1,
-    onSurface = NoorTextPrimary,
+    onSurface = PureWhite,
     surfaceVariant = NoorSurface2,
     onSurfaceVariant = NoorTextSecondary,
     outline = NoorOutline,
     error = SignalRed,
-    onError = Color.White
+    onError = PureWhite
 )
 
 private val VibrantLightColorScheme = lightColorScheme(
     primary = EmeraldPrimary,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFD6F7E8),
-    onPrimaryContainer = Color(0xFF003824),
+    onPrimary = PureWhite,
+    primaryContainer = EmeraldHalkaLight,
+    onPrimaryContainer = PureBlack,
     secondary = EmeraldDeep,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE5F6EE),
-    onSecondaryContainer = EmeraldDeep,
+    onSecondary = PureWhite,
+    secondaryContainer = EmeraldHalkaMid,
+    onSecondaryContainer = PureBlack,
     tertiary = SignalRed,
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFECEB),
-    onTertiaryContainer = Color(0xFF8C0009),
-    background = VibrantCanvas,
-    onBackground = VibrantTextPrimary,
+    onTertiary = PureWhite,
+    tertiaryContainer = SignalRedSoft,
+    onTertiaryContainer = PureBlack,
+    background = PureWhite,
+    onBackground = PureBlack,
     surface = VibrantSurface,
-    onSurface = VibrantTextPrimary,
+    onSurface = PureBlack,
     surfaceVariant = VibrantSurfaceVariant,
     onSurfaceVariant = VibrantTextSecondary,
     outline = VibrantOutline,
     error = SignalRed,
-    onError = Color.White
+    onError = PureWhite
 )
 
 val RuhaniShapes = Shapes(
