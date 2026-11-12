@@ -1,93 +1,87 @@
-# Developer Experience (DevEx) Audit Report: Ruhani v2
+# Project Review Report: Ruhani v2
 
-**Target Project:** [Ruhani v2](https://github.com/KhanPalash/ruhani_v2)  
-**Date:** November 12, 2026  
-**Auditor:** Antigravity Autonomous CTO & Lead DevEx Reviewer  
+**Project:** [Ruhani v2](https://gitlab.com/khanscreations3/ruhani_v2)
+**Date:** November 12, 2026
+**Scope:** Architecture, code quality, security, build/CI, documentation
+**Stack:** Kotlin, Jetpack Compose, Material 3, Firebase (Firestore + Auth), Adhan
 
 ---
 
 ## Executive Summary
 
-A comprehensive Developer Experience (DevEx / DX) live audit was conducted on the `ruhani_v2` Android codebase (Kotlin, Jetpack Compose, Material 3, Firebase, Adhan). This report outlines findings across seven core DX dimensions, evaluates developer friction points, and provides prioritized remediation steps to streamline onboarding, testing, and continuous delivery.
+Ruhani v2 is a single-module Android app (`com.aistudio.ruhani.kxmzpq`) offering Quran reading, prayer times, Qibla, Tasbih, Dua & Dhikr, and cloud sync with full Bangla support. The codebase is well organized into `data` / `domain` / `ui` layers, has real automated test coverage, hardened Firestore rules, and disciplined Conventional Commits. The main risks are a monolithic ViewModel, release build hygiene (no minification/shrinking), a generic `com.example` namespace, and cleartext traffic being globally enabled.
 
-**Overall DevEx Score:** **6.1 / 10 (Grade: B-)**
+**Overall score: 7.2 / 10 (Grade: B)**
 
----
-
-## DevEx Scorecard
-
-| # | Dimension | Score | Evidence | Status |
-|---|---|:---:|---|---|
-| 1 | **Getting Started & Onboarding** | **6.5 / 10** | `README.md`, `local.properties` | Acceptable (Minor setup friction) |
-| 2 | **Architecture & Code Ergonomics** | **7.0 / 10** | `RuhaniViewModel.kt` | Good modular domains, monolithic ViewModel |
-| 3 | **Error Handling & Versioning** | **5.5 / 10** | `UpdateChecker.kt`, `app/build.gradle.kts` | Critical version mismatch bug |
-| 4 | **Documentation & Visual Assets** | **7.5 / 10** | `README.md`, `screenshots/` | High quality (1 broken link) |
-| 5 | **CI/CD & Automation** | **3.0 / 10** | `.github/workflows/` | Poor (Workflow deleted in commit `4771f10`) |
-| 6 | **Testing & Quality Assurance** | **8.0 / 10** | Robolectric UI & JUnit tests | Strong automated coverage |
-| 7 | **Community & Ecosystem** | **5.0 / 10** | Missing `CHANGELOG.md`, `LICENSE` | Needs Work |
+Most P0 items from the prior DevEx audit are now resolved: version is bumped to `2.0.1` (`versionCode = 2`), `.gitlab-ci.yml` builds the debug APK, and `LICENSE` + `CHANGELOG.md` exist.
 
 ---
 
-## Key Strengths
+## Scorecard
 
-1. **Graceful Firebase Fallback:**
-   In `app/build.gradle.kts`:
-   ```kotlin
-   googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
-   ```
-   Developers can clone and build the project immediately without a mandatory `google-services.json` file.
-2. **Comprehensive Automated Test Coverage:**
-   The repository includes both unit tests (`ExampleUnitTest.kt`) for astronomical/prayer calculations and full Compose UI tests (`ExampleRobolectricTest.kt`) covering navigation, Tasbih state persistence, and Dua search.
-3. **Consistent Commit Discipline:**
-   Git history strictly follows Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`), facilitating automated changelog generation and clear audit trails.
-
----
-
-## Critical Issues & Friction Points
-
-### 1. [P0 BUG] Hardcoded Version Mismatch Causing Infinite Update Dialog
-- **Location:** `app/build.gradle.kts` (Lines 20–21), `RuhaniViewModel.kt` (Lines 237–249)
-- **Problem:**
-  ```kotlin
-  versionCode = 1
-  versionName = "1.0"
-  ```
-  The app is published as `v2.0.1` on GitHub. When built from source, `packageManager.getPackageInfo().versionName` reads `"1.0"`. `UpdateChecker.isNewer("2.0.1", "1.0")` evaluates to `true`, displaying an intrusive "Update Available" popup on every launch even for users already running the latest build.
-- **Remediation:** Bump `versionCode = 2` and `versionName = "2.0.1"` in `app/build.gradle.kts`.
-
-### 2. [P0 CI/CD] Accidental Deletion of GitHub Actions APK Builder
-- **Location:** Commit `4771f10` (`feat: add KhansCreations branding...`)
-- **Problem:**
-  `.github/workflows/build-apk.yml` was deleted during commit `4771f10`. Currently, no automated CI build or APK artifact generator runs on commits or pull requests.
-- **Remediation:** Restore `.github/workflows/build-apk.yml` to ensure continuous compilation, test execution, and automated APK artifact builds.
-
-### 3. [P1 DX] Monolithic ViewModel Architecture (1,760 LOC)
-- **Location:** `app/src/main/java/com/example/ui/RuhaniViewModel.kt`
-- **Problem:** A single ViewModel class handles prayer calculation, digital Tasbih state, Quran audio playback, Firestore sync, analytics, advertising modal dialogs, and district filtering.
-- **Remediation:** Refactor `RuhaniViewModel` into focused domain delegates or sub-ViewModels:
-  - `PrayerViewModel`
-  - `QuranAudioViewModel`
-  - `TasbihViewModel`
-  - `SyncAndAccountViewModel`
-
-### 4. [P1 Docs] Broken License Link & Missing Documentation Files
-- **Location:** `README.md` (Line 175)
-- **Problem:** `README.md` references `[LICENSE](LICENSE)`, but no `LICENSE` file exists in the repository root (results in 404). Additionally, `CHANGELOG.md` and `.github/ISSUE_TEMPLATE` are missing.
-- **Remediation:** Add standard MIT `LICENSE` file and initialize `CHANGELOG.md`.
-
-### 5. [P2 Environment] Execution Permission on Native Android Terminals
-- **Problem:** Running `./gradlew` on Android userspace fails with `bad interpreter: Permission denied` due to `/bin/sh` path differences.
-- **Remediation:** Document using `bash gradlew <task>` and set `systemProp.gradle.user.home` in `gradle.properties`.
+| # | Dimension | Score | Status |
+|---|---|:---:|---|
+| 1 | Architecture & structure | 7.5 / 10 | Clean layering; ViewModel too large |
+| 2 | Code quality & ergonomics | 7.0 / 10 | Good patterns; a few monolith files |
+| 3 | Security | 6.0 / 10 | Strong Firestore rules; manifest/build gaps |
+| 4 | Build & release config | 6.5 / 10 | Works; release not minified/shrunk |
+| 5 | CI/CD | 7.0 / 10 | Debug APK pipeline; no test/lint stage |
+| 6 | Testing & QA | 7.5 / 10 | Unit + Robolectric + Espresso present |
+| 7 | Documentation | 8.0 / 10 | Strong README, CHANGELOG, LICENSE |
 
 ---
 
-## Action Plan & Roadmap
+## Strengths
 
-1. **Immediate (P0):**
-   - Update `app/build.gradle.kts` to `versionCode = 2`, `versionName = "2.0.1"`.
-   - Restore `.github/workflows/build-apk.yml`.
-2. **Short-Term (P1):**
-   - Add MIT `LICENSE` and create `CHANGELOG.md`.
-   - Add GitHub issue and PR templates.
-3. **Medium-Term (P2):**
-   - Modularize `RuhaniViewModel.kt` into domain-specific view models.
+1. **Clean layered architecture.** Source is split into `data/` (model, remote, repository), `domain/` (prayer engine, catalogs, schedulers), and `ui/` (ViewModel, screens, theme), which keeps concerns separated and discoverable.
+2. **Hardened Firestore rules.** `firestore.rules` uses a global default-deny, per-entity validation blueprints, owner-only access, field allow-lists (`hasAll` / `hasOnly`), and immutability checks on `createdAt` and identity fields. This is notably above average for a hobby/indie app.
+3. **Real test coverage.** `app/src/test` contains unit, Robolectric, and a prayer-notification/data test; `androidTest` has instrumented coverage. `failFast`, a 2-minute per-test timeout, and offline Robolectric config are set in `app/build.gradle.kts`.
+4. **Graceful Firebase fallback.** `missingGoogleServicesStrategy = WARN` plus `googleServices.missing.passthrough=true` let contributors build without `google-services.json`.
+5. **Documentation and release hygiene.** README is thorough, `CHANGELOG.md` follows Keep a Changelog + SemVer, and secrets are managed via `.env` / `.env.example` through the Secrets Gradle plugin.
+
+---
+
+## Issues & Recommendations
+
+### P1 - Monolithic ViewModel
+`app/src/main/java/com/example/ui/RuhaniViewModel.kt` is the single source of truth for prayer calc, Tasbih, Quran audio, Firestore sync, update checks, and dialog state. Split into focused delegates: `PrayerViewModel`, `QuranAudioViewModel`, `TasbihViewModel`, `SyncAndAccountViewModel`.
+
+### P1 - Release build not minified or shrunk
+In `app/build.gradle.kts` the `release` type sets `isMinifyEnabled = false` and `proguard-rules.pro` is effectively empty. Enable R8 (`isMinifyEnabled = true`, `isShrinkResources = true`) and add keep rules for Firebase/Adhan models to reduce APK size and strip unused code.
+
+### P1 - Generic application namespace
+`namespace = "com.example"` while `applicationId = "com.aistudio.ruhani.kxmzpq"`. The `com.example` package is a placeholder and should be renamed (e.g. `com.khanscreations.ruhani`) to avoid collisions and look production-grade.
+
+### P2 - Cleartext traffic globally enabled
+`AndroidManifest.xml` sets `android:usesCleartextTraffic="true"`. If all APIs are HTTPS, remove this or replace it with a scoped `network_security_config.xml` that only allows cleartext for specific hosts.
+
+### P2 - Sensitive/permission-heavy manifest
+`SCHEDULE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, and fine location are declared. These are justified by prayer alarms and Qibla, but confirm Play Store policy compliance for exact alarms (Android 13+) and consider the `USE_EXACT_ALARM` vs `SCHEDULE_EXACT_ALARM` distinction.
+
+### P2 - CI runs build only
+`.gitlab-ci.yml` has a single `build_debug_apk` job. Add a `test` stage running `./gradlew testDebugUnitTest` and a lint stage (`./gradlew lintDebug`) so regressions are caught before merge. The job also generates a `debug.keystore` on the fly, which is fine for debug but should never be reused for release.
+
+### P3 - Dependency hygiene
+`app/build.gradle.kts` carries many commented-out dependencies (Room, Retrofit, Moshi, CameraX, Coil). Remove ones with no near-term plan to keep the manifest of intent clean; version catalog (`libs.*`) usage is otherwise good.
+
+---
+
+## Security Notes
+
+- Firestore rules are the strongest security asset: default-deny, owner scoping, strict schema validation. Recommend adding emulator-based rules tests (there is already a `firestore.test.js` at root to build on).
+- No secrets are committed; keys flow through `.env` (gitignored) with `.env.example` as the template.
+- Verify `google-services.json` and `my-upload-key.jks` are gitignored (they are referenced only via env/paths, which is correct).
+
+---
+
+## Action Plan
+
+1. **Short-term (P1):** Enable R8 + resource shrinking for release; rename `com.example` namespace; begin extracting ViewModel delegates.
+2. **Medium-term (P2):** Scope or remove cleartext traffic; add `test` + `lint` stages to `.gitlab-ci.yml`; review exact-alarm policy.
+3. **Housekeeping (P3):** Drop unused commented dependencies; add Firestore rules tests to CI.
+
+---
+
+## Repository Cleanup (this change)
+
+As part of this review the repo was cleaned of non-source artifacts: `.aistudio/` (temp media), `screenshots/`, and `design/` were removed, and the broken `## Screenshots` section was dropped from `README.md`.
