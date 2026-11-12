@@ -8,6 +8,14 @@ Ruhani is a comprehensive Islamic lifestyle Android app built with Kotlin and Je
 
 ---
 
+## Screenshots
+
+| Home & Dashboard | Prayer Times | Al-Qur'an | Qibla Compass |
+| :---: | :---: | :---: | :---: |
+| <img src="screenshots/01_home_dashboard.jpg" width="200" alt="Home & Dashboard"/> | <img src="screenshots/02_prayer_times.jpg" width="200" alt="Prayer Times"/> | <img src="screenshots/03_al_quran.jpg" width="200" alt="Al-Qur'an"/> | <img src="screenshots/04_qibla_compass.jpg" width="200" alt="Qibla Compass"/> |
+
+---
+
 ## Features
 
 **Quran**
