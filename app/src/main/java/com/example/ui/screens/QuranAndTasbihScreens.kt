@@ -1894,12 +1894,13 @@ fun DigitalTasbihScreen(
                             modifier = Modifier
                                 .size(208.dp)
                                 .clip(CircleShape)
-                                .testTag("tasbih_tap_button")
+                                .testTag("tasbih_increment_button")
                                 .clickable { onIncrement() }
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .testTag("tasbih_tap_button")
                                     .background(ruhaniCardBrush()),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center

@@ -103,20 +103,20 @@ data class RuhaniUiState(
     // Azan & Notification toggles per Waqt
     val azanAlerts: Map<WaqtType, Boolean> = mapOf(
         WaqtType.FAJR to true,
-        WaqtType.DHUHR to false,
+        WaqtType.DHUHR to true,
         WaqtType.ASR to true,
         WaqtType.MAGHRIB to true,
-        WaqtType.ISHA to false
+        WaqtType.ISHA to true
     ),
     val autoSilenceDuringSalat: Boolean = true,
     // Tasbih State
     val selectedTasbihPreset: TasbihPreset = RuhaniContentCatalog.tasbihPresets.first(),
-    val tasbihCurrentCount: Int = 23,
+    val tasbihCurrentCount: Int = 0,
     val tasbihTarget: Int = 33,
     val tasbihCycle: Int = 1,
     val tasbihTotalCycles: Int = 3,
-    val tasbihTodayTotal: Int = 347,
-    val tasbihAllTimeTotal: Long = 4220L,
+    val tasbihTodayTotal: Int = 0,
+    val tasbihAllTimeTotal: Long = 0L,
     val tasbihCountsByPreset: Map<String, Int> = emptyMap(),
     val tasbihVibrationEnabled: Boolean = true,
     val tasbihSoundEnabled: Boolean = false,
@@ -127,7 +127,7 @@ data class RuhaniUiState(
     // Quran Reader & Audio State
     val selectedSurah: QuranSurah = QuranCatalog.surahs.first(),
     val lastReadSurahNumber: Int = 1,
-    val lastReadAyahNumber: Int = 2,
+    val lastReadAyahNumber: Int = 1,
     val mushafMode: MushafMode = MushafMode.AYAH_BY_AYAH,
     val quranArabicFontSizeSp: Int = 28,
     val showTransliteration: Boolean = true,
@@ -145,12 +145,12 @@ data class RuhaniUiState(
     val audioDurationMs: Int = 0,
     val audioRepeat3x: Boolean = false,
     val ayahRepeatIteration: Int = 1,
-    val currentAyahAudioUrl: String = "https://the-quran-project.github.io/Quran-Audio/Data/1/1_2.mp3",
-    val currentAyahOriginalUrl: String = "https://everyayah.com/data/Alafasy_128kbps/001002.mp3",
-    val currentAyahApiEndpoint: String = "https://quranapi.pages.dev/api/1/2.json",
+    val currentAyahAudioUrl: String = "https://the-quran-project.github.io/Quran-Audio/Data/1/1_1.mp3",
+    val currentAyahOriginalUrl: String = "https://everyayah.com/data/Alafasy_128kbps/001001.mp3",
+    val currentAyahApiEndpoint: String = "https://quranapi.pages.dev/api/1/1.json",
     val isSurahSyncingFromApi: Boolean = false,
     val expandedTafsirAyahKey: String? = null,
-    val downloadedSurahIds: Set<Int> = setOf(1, 36, 67, 112, 113, 114),
+    val downloadedSurahIds: Set<Int> = emptySet(),
     val downloadingSurahId: Int? = null,
     val downloadedAyahKeys: Set<String> = emptySet(),
     val downloadingAyahKey: String? = null,
@@ -163,9 +163,9 @@ data class RuhaniUiState(
     val exportedUserDataJson: String? = null,
     // Offline Content & Progress Synchronization State
     val isDeviceOnline: Boolean = true,
-    val downloadedArticleIds: Set<String> = setOf("art_khushu_salat"),
-    val articleReadProgress: Map<String, Int> = mapOf("art_khushu_salat" to 35),
-    val offlineStorageUsedKb: Int = 420,
+    val downloadedArticleIds: Set<String> = emptySet(),
+    val articleReadProgress: Map<String, Int> = emptyMap(),
+    val offlineStorageUsedKb: Int = 0,
     val pendingSyncQueue: List<PendingSyncRecord> = emptyList(),
     val lastSyncedLabel: String = "আজ সংরক্ষিত (Just now)",
     // Push & Personalized Notifications State
@@ -175,22 +175,22 @@ data class RuhaniUiState(
     val notificationFeed: List<RuhaniNotificationItem> = emptyList(),
     // Salat & Qaza Tracker
     val salatLogsByDate: Map<String, SalatLog> = emptyMap(),
-    val qazaFajr: Long = 2L,
-    val qazaDhuhr: Long = 1L,
+    val qazaFajr: Long = 0L,
+    val qazaDhuhr: Long = 0L,
     val qazaAsr: Long = 0L,
     val qazaMaghrib: Long = 0L,
-    val qazaIsha: Long = 1L,
-    val qazaWitr: Long = 1L,
+    val qazaIsha: Long = 0L,
+    val qazaWitr: Long = 0L,
     // Bookmarks
     val bookmarks: List<QuranBookmark> = emptyList(),
     // Zakat Calculator
     val zakatUseSilverNisab: Boolean = true,
     val zakatGoldRatePerVori: Double = 138000.0,
     val zakatSilverRatePerVori: Double = 2100.0,
-    val zakatCashBdt: String = "250000",
-    val zakatGoldValueBdt: String = "0",
-    val zakatBusinessBdt: String = "50000",
-    val zakatDebtsBdt: String = "15000",
+    val zakatCashBdt: String = "",
+    val zakatGoldValueBdt: String = "",
+    val zakatBusinessBdt: String = "",
+    val zakatDebtsBdt: String = "",
     // Haramain Live Stream State
     val haramainChannel: String = "MAKKAH", // "MAKKAH" or "MADINAH"
     val isHaramainPlaying: Boolean = true,
@@ -222,6 +222,7 @@ class RuhaniViewModel(
     init {
         initTts()
         RuhaniPushNotificationManager.ensureNotificationChannels(appContext)
+        com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
         startLivePrayerClock()
         observeNetworkConnectivity()
         if (authenticatedUserId != null && firestoreRepository != null) {
@@ -303,47 +304,50 @@ class RuhaniViewModel(
             hijriOffsetDays = hijriOffset
         )
 
+        val azanAlertsMap = mapOf(
+            WaqtType.FAJR to prefs.getBoolean("azan_alert_${WaqtType.FAJR.name}", true),
+            WaqtType.DHUHR to prefs.getBoolean("azan_alert_${WaqtType.DHUHR.name}", true),
+            WaqtType.ASR to prefs.getBoolean("azan_alert_${WaqtType.ASR.name}", true),
+            WaqtType.MAGHRIB to prefs.getBoolean("azan_alert_${WaqtType.MAGHRIB.name}", true),
+            WaqtType.ISHA to prefs.getBoolean("azan_alert_${WaqtType.ISHA.name}", true)
+        )
+
         val defaultSalatLog = SalatLog(
             id = todaySchedule.dateKey,
             userId = resolvedUserId ?: "local",
             dateKey = todaySchedule.dateKey,
-            fajr = prefs.getBoolean("salat_${todaySchedule.dateKey}_fajr", true),
-            dhuhr = prefs.getBoolean("salat_${todaySchedule.dateKey}_dhuhr", true),
+            fajr = prefs.getBoolean("salat_${todaySchedule.dateKey}_fajr", false),
+            dhuhr = prefs.getBoolean("salat_${todaySchedule.dateKey}_dhuhr", false),
             asr = prefs.getBoolean("salat_${todaySchedule.dateKey}_asr", false),
             maghrib = prefs.getBoolean("salat_${todaySchedule.dateKey}_maghrib", false),
             isha = prefs.getBoolean("salat_${todaySchedule.dateKey}_isha", false),
             witr = prefs.getBoolean("salat_${todaySchedule.dateKey}_witr", false),
-            duha = prefs.getBoolean("salat_${todaySchedule.dateKey}_duha", true),
+            duha = prefs.getBoolean("salat_${todaySchedule.dateKey}_duha", false),
             awwabin = prefs.getBoolean("salat_${todaySchedule.dateKey}_awwabin", false),
             tahajjud = prefs.getBoolean("salat_${todaySchedule.dateKey}_tahajjud", false),
             fasting = prefs.getBoolean("salat_${todaySchedule.dateKey}_fasting", false)
         )
 
-        val tasbihToday = prefs.getInt("tasbih_today", 347)
+        val tasbihToday = prefs.getInt("tasbih_today", 0)
         val savedPresetId = prefs.getString("selected_tasbih_preset_id", RuhaniContentCatalog.tasbihPresets.first().id)
             ?: RuhaniContentCatalog.tasbihPresets.first().id
         val activePreset = RuhaniContentCatalog.tasbihPresets.firstOrNull { it.id == savedPresetId }
             ?: RuhaniContentCatalog.tasbihPresets.first()
         val presetCountsMap = RuhaniContentCatalog.tasbihPresets.associate { preset ->
-            val defaultVal = if (preset.id == activePreset.id) prefs.getInt("tasbih_current", 23) else 0
+            val defaultVal = if (preset.id == activePreset.id) prefs.getInt("tasbih_current", 0) else 0
             preset.id to prefs.getInt("tasbih_preset_count_${preset.id}", defaultVal)
         }
-        val currentCountForActive = presetCountsMap[activePreset.id] ?: prefs.getInt("tasbih_current", 23)
+        val currentCountForActive = presetCountsMap[activePreset.id] ?: prefs.getInt("tasbih_current", 0)
         val savedTarget = prefs.getInt("tasbih_target", activePreset.defaultTarget)
         val savedCycle = prefs.getInt("tasbih_cycle", 1)
 
         val duaCountsMap = RuhaniContentCatalog.duas.associate { dua ->
             dua.id to prefs.getInt("dua_count_${dua.id}", 0)
         }
-        val favDuas = prefs.getStringSet("favorite_duas", setOf("sayyidul_istighfar", "rabbana_atina"))
-            ?.toSet() ?: setOf("sayyidul_istighfar", "rabbana_atina")
+        val favDuas = prefs.getStringSet("favorite_duas", emptySet())
+            ?.toSet() ?: emptySet()
 
-        val initialNotifs = RuhaniPushNotificationManager.buildInitialNotifications(
-            nextWaqtLabelBn = todaySchedule.nextWaqt.nameBn,
-            tasbihToday = tasbihToday,
-            lastReadSurahBn = QuranCatalog.surahs.first().nameBn,
-            lastReadAyah = 2
-        )
+        val realNotifs = RuhaniPushNotificationManager.getStoredNotifications(appContext)
 
         return RuhaniUiState(
             hasCompletedOnboarding = onboarded || resolvedUserId != null,
@@ -357,17 +361,17 @@ class RuhaniViewModel(
             privacyDataMinimization = localSession?.privacyAnalyticsMinimize ?: true,
             isDeviceOnline = OfflineContentAndSyncManager.isDeviceOnline(appContext),
             downloadedArticleIds = OfflineContentAndSyncManager.getDownloadedArticleIds(appContext),
+            downloadedSurahIds = prefs.getStringSet("downloaded_surah_ids", emptySet())?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet(),
             downloadedAyahKeys = prefs.getStringSet("downloaded_ayah_keys", emptySet())?.toSet() ?: emptySet(),
-            articleReadProgress = OfflineContentAndSyncManager.getArticleProgressMap(appContext).ifEmpty {
-                mapOf("art_khushu_salat" to 35)
-            },
+            articleReadProgress = OfflineContentAndSyncManager.getArticleProgressMap(appContext),
             offlineStorageUsedKb = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext),
             pendingSyncQueue = OfflineContentAndSyncManager.getPendingSyncQueue(appContext),
             lastSyncedLabel = OfflineContentAndSyncManager.getLastSyncTimestampLabel(appContext),
             notifyNewContentAlerts = prefs.getBoolean("notify_new_content", true),
             notifyImportantUpdates = prefs.getBoolean("notify_important_updates", true),
             notifyPersonalizedActivity = prefs.getBoolean("notify_personalized_activity", true),
-            notificationFeed = initialNotifs,
+            notificationFeed = realNotifs,
+            azanAlerts = azanAlertsMap,
             language = lang,
             themeMode = theme,
             selectedDistrict = district,
@@ -380,24 +384,40 @@ class RuhaniViewModel(
             tasbihTarget = savedTarget,
             tasbihCycle = savedCycle,
             tasbihTodayTotal = tasbihToday,
-            tasbihAllTimeTotal = prefs.getLong("tasbih_all_time", 4220L),
+            tasbihAllTimeTotal = prefs.getLong("tasbih_all_time", 0L),
             tasbihCountsByPreset = presetCountsMap,
             duaCountsById = duaCountsMap,
             favoriteDuaIds = favDuas,
-            qazaFajr = prefs.getLong("qaza_fajr", 2L),
-            qazaDhuhr = prefs.getLong("qaza_dhuhr", 1L),
+            qazaFajr = prefs.getLong("qaza_fajr", 0L),
+            qazaDhuhr = prefs.getLong("qaza_dhuhr", 0L),
             qazaAsr = prefs.getLong("qaza_asr", 0L),
             qazaMaghrib = prefs.getLong("qaza_maghrib", 0L),
-            qazaIsha = prefs.getLong("qaza_isha", 1L),
-            qazaWitr = prefs.getLong("qaza_witr", 1L),
+            qazaIsha = prefs.getLong("qaza_isha", 0L),
+            qazaWitr = prefs.getLong("qaza_witr", 0L),
             salatLogsByDate = mapOf(todaySchedule.dateKey to defaultSalatLog)
         )
     }
+
+    private var lastObservedWaqt: WaqtType? = null
 
     private fun startLivePrayerClock() {
         viewModelScope.launch {
             while (isActive) {
                 refreshPrayerSchedule()
+                val currentWaqt = _uiState.value.schedule.currentWaqt
+                if (lastObservedWaqt != null && lastObservedWaqt != currentWaqt) {
+                    val s = _uiState.value
+                    if (s.azanAlerts[currentWaqt] == true) {
+                        RuhaniPushNotificationManager.sendNotification(
+                            context = appContext,
+                            category = NotificationCategory.WAQT_AZAN,
+                            title = "নামাজের ওয়াক্ত উপস্থিত: ${currentWaqt.nameBn}",
+                            message = "${s.selectedDistrict.nameBn} জেলায় ${currentWaqt.nameBn} সালাতের ওয়াক্ত শুরু হয়েছে। ওযু করে জামাতে নামাজ আদায়ের প্রস্তুতি নিন।"
+                        )
+                        _uiState.update { it.copy(notificationFeed = RuhaniPushNotificationManager.getStoredNotifications(appContext)) }
+                    }
+                }
+                lastObservedWaqt = currentWaqt
                 delay(1000L)
             }
         }
@@ -568,6 +588,7 @@ class RuhaniViewModel(
         prefs.edit().putString("district", district.id).apply()
         _uiState.update { it.copy(selectedDistrict = district) }
         refreshPrayerSchedule()
+        com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
         syncProfileToCloud()
     }
 
@@ -575,6 +596,7 @@ class RuhaniViewModel(
         prefs.edit().putString("calc_method", method.id).apply()
         _uiState.update { it.copy(calculationMethod = method) }
         refreshPrayerSchedule()
+        com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
         syncProfileToCloud()
     }
 
@@ -582,6 +604,7 @@ class RuhaniViewModel(
         prefs.edit().putString("madhhab", madhhab.id).apply()
         _uiState.update { it.copy(madhhab = madhhab) }
         refreshPrayerSchedule()
+        com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
         syncProfileToCloud()
     }
 
@@ -606,6 +629,7 @@ class RuhaniViewModel(
         prefs.edit().putInt("hijri_offset", clamped).apply()
         _uiState.update { it.copy(hijriOffsetDays = clamped) }
         refreshPrayerSchedule()
+        com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
     }
 
     fun shiftPrayerScheduleDay(delta: Int) {
@@ -615,10 +639,13 @@ class RuhaniViewModel(
     }
 
     fun toggleAzanAlert(waqt: WaqtType) {
+        val current = _uiState.value.azanAlerts[waqt] ?: true
+        val updated = !current
+        prefs.edit().putBoolean("azan_alert_${waqt.name}", updated).apply()
         _uiState.update { state ->
-            val current = state.azanAlerts[waqt] ?: false
-            state.copy(azanAlerts = state.azanAlerts + (waqt to !current))
+            state.copy(azanAlerts = state.azanAlerts + (waqt to updated))
         }
+        com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
     }
 
     fun updateProfileDetails(name: String, phone: String) {
@@ -1581,7 +1608,7 @@ class RuhaniViewModel(
     fun triggerPersonalizedActivityNotification() {
         val s = _uiState.value
         val surahName = QuranCatalog.surahs.firstOrNull { it.number == s.lastReadSurahNumber }?.nameBn ?: "আল-ফাতিহা"
-        val item = RuhaniPushNotificationManager.sendNotification(
+        RuhaniPushNotificationManager.sendNotification(
             context = appContext,
             category = NotificationCategory.PERSONALIZED,
             title = "ব্যক্তিগত আমল রিমাইন্ডার • ${s.displayName}",
@@ -1589,14 +1616,14 @@ class RuhaniViewModel(
         )
         _uiState.update {
             it.copy(
-                notificationFeed = listOf(item) + it.notificationFeed,
+                notificationFeed = RuhaniPushNotificationManager.getStoredNotifications(appContext),
                 syncStatusMessage = "ব্যক্তিগত আমল নোটিফিকেশন পাঠানো হয়েছে"
             )
         }
     }
 
     fun triggerNewContentNotification() {
-        val item = RuhaniPushNotificationManager.sendNotification(
+        RuhaniPushNotificationManager.sendNotification(
             context = appContext,
             category = NotificationCategory.NEW_CONTENT,
             title = "নতুন কন্টেন্ট ও হিজরি আপডেট • রুহানি",
@@ -1604,7 +1631,7 @@ class RuhaniViewModel(
         )
         _uiState.update {
             it.copy(
-                notificationFeed = listOf(item) + it.notificationFeed,
+                notificationFeed = RuhaniPushNotificationManager.getStoredNotifications(appContext),
                 syncStatusMessage = "নতুন কন্টেন্ট পুশ অ্যালার্ট পাঠানো হয়েছে"
             )
         }
@@ -1612,7 +1639,7 @@ class RuhaniViewModel(
 
     fun triggerWaqtTestNotification() {
         val s = _uiState.value
-        val item = RuhaniPushNotificationManager.sendNotification(
+        RuhaniPushNotificationManager.sendNotification(
             context = appContext,
             category = NotificationCategory.WAQT_AZAN,
             title = "ওয়াক্ত ও আযান অ্যালার্ট: ${s.schedule.nextWaqt.nameBn}",
@@ -1620,15 +1647,16 @@ class RuhaniViewModel(
         )
         _uiState.update {
             it.copy(
-                notificationFeed = listOf(item) + it.notificationFeed,
+                notificationFeed = RuhaniPushNotificationManager.getStoredNotifications(appContext),
                 syncStatusMessage = "ওয়াক্ত ও আযান টেস্ট নোটিফিকেশন পাঠানো হয়েছে"
             )
         }
     }
 
     fun markAllNotificationsRead() {
+        val updated = RuhaniPushNotificationManager.markAllNotificationsRead(appContext)
         _uiState.update { state ->
-            state.copy(notificationFeed = state.notificationFeed.map { it.copy(isRead = true) })
+            state.copy(notificationFeed = updated)
         }
     }
 

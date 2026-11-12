@@ -4,11 +4,14 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,13 +25,32 @@ class ExampleRobolectricTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
-    @org.junit.Before
+    @Before
     fun setUp() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        context.getSharedPreferences("ruhani_local_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean("onboarded", true)
-            .apply()
+        composeTestRule.waitForIdle()
+
+        if (composeTestRule.onAllNodesWithTag("ad_dialog_dismiss_button").fetchSemanticsNodes().isNotEmpty()) {
+            composeTestRule.onNodeWithTag("ad_dialog_dismiss_button").performClick()
+            composeTestRule.waitForIdle()
+        }
+
+        if (composeTestRule.onAllNodesWithTag("onboarding_get_started_btn").fetchSemanticsNodes().isNotEmpty()) {
+            try {
+                composeTestRule.onNodeWithTag("onboarding_get_started_btn").performScrollTo()
+            } catch (_: Throwable) {}
+            composeTestRule.onNodeWithTag("onboarding_get_started_btn").performClick()
+            composeTestRule.waitForIdle()
+        }
+
+        if (composeTestRule.onAllNodesWithTag("onboarding_guest_continue_btn").fetchSemanticsNodes().isNotEmpty()) {
+            try {
+                composeTestRule.onNodeWithTag("onboarding_guest_continue_btn").performScrollTo()
+            } catch (_: Throwable) {}
+            composeTestRule.onNodeWithTag("onboarding_guest_continue_btn").performClick()
+            composeTestRule.waitForIdle()
+        }
+
+        composeTestRule.onNodeWithTag("home_dashboard_list").assertIsDisplayed()
     }
 
     @Test
@@ -76,7 +98,7 @@ class ExampleRobolectricTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = context.getSharedPreferences("ruhani_local_prefs", Context.MODE_PRIVATE)
         val savedAfterIncrement = prefs.getInt("tasbih_current", -1)
-        assertEquals(24, savedAfterIncrement)
+        assertEquals(1, savedAfterIncrement)
 
         composeTestRule.onNodeWithTag("tasbih_reset_button").performClick()
         composeTestRule.onNodeWithTag("tasbih_confirm_reset_button").performClick()

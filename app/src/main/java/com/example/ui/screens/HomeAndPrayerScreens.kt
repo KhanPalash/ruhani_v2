@@ -1,7 +1,11 @@
 package com.example.ui.screens
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
@@ -1483,9 +1487,18 @@ fun PrayerScheduleScreen(
     onSelectDistrict: (BdDistrict) -> Unit,
     onSelectMethod: (CalculationMethod) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val schedule = uiState.schedule
     val isBn = uiState.language == "bn"
     var showChangeConfigModal by remember { mutableStateOf(false) }
+
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(context)
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -1995,7 +2008,14 @@ fun PrayerScheduleScreen(
                         }
 
                         IconButton(
-                            onClick = { onToggleAzanAlert(waqt.type) },
+                            onClick = {
+                                if (!alertEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    if (!com.example.domain.RuhaniPushNotificationManager.hasNotificationPermission(context)) {
+                                        notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                }
+                                onToggleAzanAlert(waqt.type)
+                            },
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(10.dp))

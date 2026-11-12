@@ -1260,7 +1260,7 @@ fun IslamicBooksScreen(
     BackHandler { onBack() }
     val isBn = uiState.language == "bn"
     var selectedBookId by remember { mutableStateOf<String?>(null) }
-    var expandedArticleId by remember { mutableStateOf<String?>("art_khushu_salat") }
+    var expandedArticleId by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier
@@ -2417,7 +2417,12 @@ fun ProfileScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
-                            onClick = onSendPersonalizedAlert,
+                            onClick = {
+                                if (!hasNotifPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                                onSendPersonalizedAlert()
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = NoorEmeraldPrimary),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
@@ -2432,7 +2437,12 @@ fun ProfileScreen(
                             )
                         }
                         Button(
-                            onClick = onSendNewContentAlert,
+                            onClick = {
+                                if (!hasNotifPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                                onSendNewContentAlert()
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = NoorEmeraldPrimary),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
@@ -2447,7 +2457,12 @@ fun ProfileScreen(
                             )
                         }
                         OutlinedButton(
-                            onClick = onSendWaqtTestAlert,
+                            onClick = {
+                                if (!hasNotifPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                                onSendWaqtTestAlert()
+                            },
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                             modifier = Modifier

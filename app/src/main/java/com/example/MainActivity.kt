@@ -1,10 +1,14 @@
 package com.example
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,6 +48,7 @@ import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.PureWhite
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -175,6 +180,23 @@ fun RuhaniAppRoot() {
         auth?.addAuthStateListener(listener)
         onDispose {
             auth?.removeAuthStateListener(listener)
+        }
+    }
+
+    // Auto-request POST_NOTIFICATIONS permission on Android 13+ (API 33+)
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            com.example.domain.PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!com.example.domain.RuhaniPushNotificationManager.hasNotificationPermission(appContext)) {
+                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
@@ -904,7 +926,10 @@ fun KhansCreationsAdDialog(
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("ad_dialog_dismiss_button")
+            ) {
                 Text(
                     text = if (isBn) "অ্যাপে প্রবেশ করুন" else "Continue to App",
                     color = MaterialTheme.colorScheme.onSurface
