@@ -64,8 +64,8 @@ Ruhani is a comprehensive Islamic lifestyle Android app built with Kotlin and Je
 - Android 7.0 (API 24) or higher
 - Target SDK 36
 - Google Play Services (for Google Sign-In)
-- Location permission — for prayer times and Qibla direction
 - Notification permission — for Azan alerts
+- Exact alarm permission — on Android 12+ the user must grant it (Settings → App Settings → Prayer Time Alerts) for Azan alerts to fire on time
 
 ---
 
@@ -81,9 +81,15 @@ cd ruhani_v2
 ### 2. Set up Firebase
 
 1. Create a project at [Firebase Console](https://console.firebase.google.com)
-2. Add an Android app with package ID `com.aistudio.ruhani.kxmzpq`
+2. Add an Android app with package ID `com.khanscreations.ruhani`
 3. Download `google-services.json` and place it in `app/`
 4. Enable **Firestore** and **Google Sign-In** in the Firebase console
+
+> The app ID was previously `com.aistudio.ruhani.kxmzpq`. That package must be
+> registered as a second Android app in the **same** Firebase project so existing
+> users keep their Auth account and Firestore data, and a fresh
+> `google-services.json` downloaded afterwards. Google Sign-In also needs an OAuth
+> client for the new package name with the same SHA-1 fingerprint.
 
 ### 3. Configure secrets
 
@@ -121,7 +127,7 @@ bash gradlew assembleDebug
 ## Project Structure
 
 ```
-app/src/main/java/com/example/
+app/src/main/java/com/khanscreations/ruhani/
 ├── MainActivity.kt           # App entry, navigation shell
 ├── data/
 │   ├── model/                # Data models (UserProfile, QuranBookmark, SalatLog)
@@ -158,10 +164,19 @@ The app supports the following user-configurable settings:
 | Permission | Purpose |
 |---|---|
 | `INTERNET` | Quran audio streaming, cloud sync |
-| `ACCESS_FINE_LOCATION` | Qibla direction, accurate prayer times |
-| `ACCESS_COARSE_LOCATION` | Approximate location fallback |
+| `ACCESS_NETWORK_STATE` | Network availability checks |
 | `POST_NOTIFICATIONS` | Azan and prayer time alerts |
 | `VIBRATE` | Tasbih and notification feedback |
+| `RECEIVE_BOOT_COMPLETED` | Re-arm prayer alarms after reboot or a clock/timezone change |
+| `SCHEDULE_EXACT_ALARM` | Fire Azan alerts at the exact prayer time (user-granted on Android 12+) |
+
+The app does **not** request device location. Prayer times and the Qibla bearing are
+calculated from the built-in district catalogue, so no location permission is collected
+or stored.
+
+All network traffic is HTTPS. `res/xml/network_security_config.xml` denies cleartext
+for every host except the loopback addresses used by the Firebase emulator in local
+development.
 
 ---
 

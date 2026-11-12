@@ -35,12 +35,16 @@ moshiKotlin = "1.15.2"
 moshiKotlinCodegen = "1.15.2"
 datastorePreferences = "1.1.7"
 robolectric = "4.16.1"
-firebaseBom = "34.17.0"
+# BoM 35.x pulls firebase-auth 25.0.0, which is compiled with Kotlin 2.4 metadata
+# and cannot be read by this project's Kotlin 2.2.10 compiler. 34.18.0 is the last
+# release on the firebase-auth 24.2.0 line. Bump both together when Kotlin goes to 2.4+.
+firebaseBom = "34.18.0"
 secretsGradlePlugin = "2.0.1"
-googleServices = "4.5.0"
+googleServices = "4.6.0"
 credentials = "1.5.0"
 googleid = "1.1.1"
 adhan = "1.2.1"
+desugarJdkLibs = "2.1.5"
 
 
 [libraries]
@@ -96,6 +100,7 @@ androidx-credentials = { group = "androidx.credentials", name = "credentials", v
 androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 adhan = { group = "com.batoulapps.adhan", name = "adhan", version.ref = "adhan" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 
 
 [plugins]

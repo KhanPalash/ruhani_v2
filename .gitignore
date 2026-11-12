@@ -16,5 +16,9 @@
 local.properties
 .env
 debug.keystore
--e 
+# Firebase config and signing material are local-only. Inject them in CI via
+# CI variables instead of committing them.
+google-services.json
+my-upload-key.jks
+*.jks
 *-debug.log

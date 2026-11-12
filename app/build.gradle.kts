@@ -10,11 +10,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.khanscreations.ruhani"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.ruhani.kxmzpq"
+    applicationId = "com.khanscreations.ruhani"
     minSdk = 24
     targetSdk = 36
     versionCode = 2
@@ -59,6 +59,10 @@ android {
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+    // The app uses java.time APIs (LocalDate, YearMonth, DateTimeFormatter), which
+    // only exist from API 26. Desugaring backports them so the declared minSdk 24
+    // is actually supported instead of crashing with NoClassDefFoundError.
+    isCoreLibraryDesugaringEnabled = true
   }
   buildFeatures {
     compose = true
@@ -73,7 +77,10 @@ android {
 
 tasks.withType<Test> {
   failFast = true
-  timeout.set(Duration.ofMinutes(2))
+  // The suite itself only needs ~40s, but a cold run (first Robolectric sandbox,
+  // first Firebase init, JIT) can take well over two minutes and was tripping the
+  // old 2-minute cap. Keep generous headroom so CI is not flaky.
+  timeout.set(Duration.ofMinutes(10))
   val appUserDir = file("/home/appuser/.m2/repository/org/robolectric/android-all-instrumented/16-robolectric-13921718-i7")
   val localM2Dir = file("${System.getProperty("user.home")}/.m2/repository/org/robolectric/android-all-instrumented/16-robolectric-13921718-i7")
   val roboDir = if (appUserDir.exists()) appUserDir else localM2Dir
@@ -104,6 +111,7 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  coreLibraryDesugaring(libs.desugar.jdk.libs)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)

@@ -7,18 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Security
 
-- Bump `versionCode` to 2 and `versionName` to `2.0.1` in `app/build.gradle.kts`, so the in-app update dialog no longer appears on every launch of the latest release.
-- Show the real app version in Settings (`BuildConfig.VERSION_NAME`) instead of a hardcoded `v1.0`.
+- Removed the global `android:usesCleartextTraffic="true"` flag and added `res/xml/network_security_config.xml`. Cleartext is now denied by default for every host, with cleartext allowed only for the loopback/emulator addresses used by the Firebase emulator in local development. Every production endpoint the app talks to is already HTTPS.
+- Removed the unused `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` and `WAKE_LOCK` permissions, plus the `android.hardware.location.gps` feature declaration. Prayer times and Qibla are derived from the built-in district catalogue, so the app never requests device location.
+- Documented the exact-alarm permission choice in the manifest: the app keeps `SCHEDULE_EXACT_ALARM` (user-grantable, and the correct fit for prayer-time alerts) rather than `USE_EXACT_ALARM`, which Google Play restricts to alarm-clock and calendar apps.
 
 ### Added
 
-- `.gitlab-ci.yml` pipeline that builds the debug APK and keeps it as an artifact.
+- Settings card and prayer-screen banner that surface the Android 12+ exact-alarm grant, with a direct link to the system grant screen. Previously the app silently degraded to inexact alarms, which could delay an azan notification by several minutes.
+- `ExactAlarmPermissionTest` unit tests covering the exact-alarm grant check, the grant-screen intent, and the exact-to-inexact alarm fallback.
+- GitHub Actions `unit_tests` and `lint` jobs, mirroring the GitLab CI stages, with the APK build now gated on both.
+
+### Fixed
+
+- Enabled core library desugaring (`com.android.tools:desugar_jdk_libs`) so the `java.time` APIs used by the calendar and date-converter screens work on Android 7.0/7.1. Previously those calls threw `NoClassDefFoundError` on API 24-25 devices, and `lintDebug` failed with 39 `NewApi` errors, which left the CI lint stage permanently red.
+- Bump `versionCode` to 2 and `versionName` to `2.0.1` in `app/build.gradle.kts`, so the in-app update dialog no longer appears on every launch of the latest release.
+- Show the real app version in Settings (`BuildConfig.VERSION_NAME`) instead of a hardcoded `v1.0`.
 
 ### Changed
 
 - Restore `.github/workflows/build-apk.yml`, which was accidentally removed in `4771f10`.
+- `.gitlab-ci.yml` now runs `testDebugUnitTest` and `lintDebug` stages before the APK build (previously build only).
+- Prayer alerts now re-arm with exact timing as soon as the user grants the exact-alarm permission, instead of staying on the inexact fallback until the next reboot.
+- Renamed the source namespace from the `com.example` placeholder to `com.khanscreations.ruhani`, and moved the sources to `app/src/*/java/com/khanscreations/ruhani/`.
+- Changed `applicationId` from `com.aistudio.ruhani.kxmzpq` to `com.khanscreations.ruhani` so the installed package matches the source package. **Breaking for existing installs:** Android treats a new application ID as a different app, so users must uninstall and reinstall, which clears on-device state (settings, offline downloads, notification history, tasbih counters). Firebase Auth accounts and Firestore data survive as long as the new package is registered as a second Android app in the same Firebase project. Google Sign-In needs an OAuth client for the new package with the same SHA-1 fingerprint.
+- Upgraded the google-services Gradle plugin from 4.5.0 to 4.6.0.
+- Raised the unit-test task timeout from 2 to 10 minutes. The suite needs ~40s of test time, but a cold run (first Robolectric sandbox, first Firebase init) exceeds two minutes and was tripping the old cap, making CI flaky.
+
+### Security
+
+- Added `google-services.json` and `my-upload-key.jks`/`*.jks` to `.gitignore`, and removed a stray `-e` pattern. Neither the Firebase config nor the signing material was previously ignored, so a `git add .` would have committed them.
 
 ## [2.0.1] - 2026-11-12
 
