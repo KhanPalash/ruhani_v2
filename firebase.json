@@ -5,6 +5,15 @@
       "rules": "firestore.rules"
     }
   ],
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Ruhani Islamic App",
+        "supportEmail": "support@khanscreations.com"
+      }
+    }
+  },
   "emulators": {
     "firestore": {
       "host": "127.0.0.1",

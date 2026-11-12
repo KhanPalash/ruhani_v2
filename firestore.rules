@@ -6,95 +6,91 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Hardened Global Helpers
+    // ─── Global Helpers ───────────────────────────────────────────────────────
+
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isValidId(id) {
-      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() >= 1 && id.size() <= 128
+             && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Entity Validation Blueprints
+    // ─── Validation helpers ───────────────────────────────────────────────────
+    // NOTE: `incoming()` on UPDATE = merged doc (existing + patch), so
+    // `createdAt` from the existing document is always present in `incoming()`.
+    // All validators therefore include createdAt safely for both create & update.
+
     function isValidUserProfile(data) {
-      return data.userId is string && data.userId == request.auth.uid &&
-             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
-             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 120)) &&
-             (!('phone' in data) || data.phone == null || (data.phone is string && data.phone.size() <= 30)) &&
-             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
-             data.district is string && data.district.size() >= 1 && data.district.size() <= 60 &&
-             data.calculationMethod is string && data.calculationMethod.size() >= 1 && data.calculationMethod.size() <= 40 &&
-             data.madhhab is string && data.madhhab.size() >= 1 && data.madhhab.size() <= 20 &&
-             data.language is string && data.language.size() >= 1 && data.language.size() <= 10 &&
-             data.themeMode is string && data.themeMode.size() >= 1 && data.themeMode.size() <= 20 &&
-             data.tasbihAllTimeTotal is int && data.tasbihAllTimeTotal >= 0 &&
-             data.qazaFajr is int && data.qazaFajr >= 0 &&
-             data.qazaDhuhr is int && data.qazaDhuhr >= 0 &&
-             data.qazaAsr is int && data.qazaAsr >= 0 &&
-             data.qazaMaghrib is int && data.qazaMaghrib >= 0 &&
-             data.qazaIsha is int && data.qazaIsha >= 0 &&
-             data.qazaWitr is int && data.qazaWitr >= 0 &&
-             data.createdAt is timestamp && data.createdAt <= request.time &&
-             data.updatedAt is timestamp && data.updatedAt <= request.time;
+      return data.userId is string && data.userId == request.auth.uid
+          && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+          && (!('email'    in data) || data.email    == null || (data.email    is string && data.email.size()    <= 120))
+          && (!('phone'    in data) || data.phone    == null || (data.phone    is string && data.phone.size()    <= 30))
+          && (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500))
+          && data.district          is string && data.district.size()          >= 1 && data.district.size()          <= 60
+          && data.calculationMethod is string && data.calculationMethod.size() >= 1 && data.calculationMethod.size() <= 40
+          && data.madhhab           is string && data.madhhab.size()           >= 1 && data.madhhab.size()           <= 20
+          && data.language          is string && data.language.size()          >= 1 && data.language.size()          <= 10
+          && data.themeMode         is string && data.themeMode.size()         >= 1 && data.themeMode.size()         <= 20
+          && data.tasbihAllTimeTotal is int && data.tasbihAllTimeTotal >= 0
+          && data.qazaFajr   is int && data.qazaFajr   >= 0
+          && data.qazaDhuhr  is int && data.qazaDhuhr  >= 0
+          && data.qazaAsr    is int && data.qazaAsr    >= 0
+          && data.qazaMaghrib is int && data.qazaMaghrib >= 0
+          && data.qazaIsha   is int && data.qazaIsha   >= 0
+          && data.qazaWitr   is int && data.qazaWitr   >= 0
+          && data.createdAt  is timestamp && data.createdAt  <= request.time
+          && data.updatedAt  is timestamp && data.updatedAt  <= request.time;
     }
 
     function isValidSalatLog(data) {
-      return data.userId is string && data.userId == request.auth.uid &&
-             data.dateKey is string && data.dateKey.size() >= 1 && data.dateKey.size() <= 20 &&
-             data.fajr is bool &&
-             data.dhuhr is bool &&
-             data.asr is bool &&
-             data.maghrib is bool &&
-             data.isha is bool &&
-             data.witr is bool &&
-             data.duha is bool &&
-             data.awwabin is bool &&
-             data.tahajjud is bool &&
-             data.fasting is bool &&
-             data.createdAt is timestamp && data.createdAt <= request.time &&
-             data.updatedAt is timestamp && data.updatedAt <= request.time;
+      return data.userId  is string && data.userId == request.auth.uid
+          && data.dateKey is string && data.dateKey.size() >= 1 && data.dateKey.size() <= 20
+          && data.fajr     is bool && data.dhuhr    is bool
+          && data.asr      is bool && data.maghrib  is bool
+          && data.isha     is bool && data.witr     is bool
+          && data.duha     is bool && data.awwabin  is bool
+          && data.tahajjud is bool && data.fasting  is bool
+          && data.createdAt is timestamp && data.createdAt <= request.time
+          && data.updatedAt is timestamp && data.updatedAt <= request.time;
     }
 
     function isValidQuranBookmark(data) {
-      return data.userId is string && data.userId == request.auth.uid &&
-             data.surahNumber is int && data.surahNumber >= 1 && data.surahNumber <= 114 &&
-             data.ayahNumber is int && data.ayahNumber >= 1 && data.ayahNumber <= 286 &&
-             data.surahNameBn is string && data.surahNameBn.size() >= 1 && data.surahNameBn.size() <= 80 &&
-             data.surahNameEn is string && data.surahNameEn.size() >= 1 && data.surahNameEn.size() <= 80 &&
-             data.arabicPreview is string && data.arabicPreview.size() >= 1 && data.arabicPreview.size() <= 500 &&
-             data.translationPreview is string && data.translationPreview.size() >= 1 && data.translationPreview.size() <= 500 &&
-             data.note is string && data.note.size() <= 300 &&
-             data.createdAt is timestamp && data.createdAt <= request.time &&
-             data.updatedAt is timestamp && data.updatedAt <= request.time;
+      return data.userId  is string && data.userId == request.auth.uid
+          && data.surahNumber is int && data.surahNumber >= 1 && data.surahNumber <= 114
+          && data.ayahNumber  is int && data.ayahNumber  >= 1 && data.ayahNumber  <= 286
+          && data.surahNameBn       is string && data.surahNameBn.size()       >= 1 && data.surahNameBn.size()       <= 80
+          && data.surahNameEn       is string && data.surahNameEn.size()       >= 1 && data.surahNameEn.size()       <= 80
+          && data.arabicPreview     is string && data.arabicPreview.size()     >= 1 && data.arabicPreview.size()     <= 500
+          && data.translationPreview is string && data.translationPreview.size() >= 1 && data.translationPreview.size() <= 500
+          && data.note is string && data.note.size() <= 300
+          && data.createdAt is timestamp && data.createdAt <= request.time
+          && data.updatedAt is timestamp && data.updatedAt <= request.time;
     }
 
-    // 1. User Profile Collection
+    // ─── 1. User Profile ──────────────────────────────────────────────────────
     match /users/{userId} {
-      allow get: if isOwner(userId) && isValidId(userId);
+      allow get:  if isOwner(userId) && isValidId(userId);
       allow list: if isOwner(userId) && existing().userId == request.auth.uid;
 
-      allow create: if isOwner(userId) &&
-                       isValidId(userId) &&
-                       isValidUserProfile(incoming()) &&
-                       incoming().keys().hasAll([
+      allow create: if isOwner(userId)
+                    && isValidId(userId)
+                    && isValidUserProfile(incoming())
+                    && incoming().keys().hasAll([
                          'userId', 'displayName', 'district', 'calculationMethod',
                          'madhhab', 'language', 'themeMode', 'tasbihAllTimeTotal',
                          'qazaFajr', 'qazaDhuhr', 'qazaAsr', 'qazaMaghrib',
                          'qazaIsha', 'qazaWitr', 'createdAt', 'updatedAt'
-                       ]) &&
-                       incoming().keys().hasOnly([
+                       ])
+                    && incoming().keys().hasOnly([
                          'userId', 'displayName', 'email', 'phone', 'photoUrl',
                          'district', 'calculationMethod', 'madhhab', 'language',
                          'themeMode', 'tasbihAllTimeTotal', 'qazaFajr', 'qazaDhuhr',
@@ -102,12 +98,12 @@ service cloud.firestore {
                          'createdAt', 'updatedAt'
                        ]);
 
-      allow update: if isOwner(userId) &&
-                       isValidId(userId) &&
-                       isValidUserProfile(incoming()) &&
-                       incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
-                       incoming().diff(existing()).affectedKeys().hasOnly([
+      allow update: if isOwner(userId)
+                    && isValidId(userId)
+                    && isValidUserProfile(incoming())
+                    && incoming().userId    == existing().userId
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly([
                          'displayName', 'email', 'phone', 'photoUrl', 'district',
                          'calculationMethod', 'madhhab', 'language', 'themeMode',
                          'tasbihAllTimeTotal', 'qazaFajr', 'qazaDhuhr', 'qazaAsr',
@@ -116,34 +112,32 @@ service cloud.firestore {
 
       allow delete: if isOwner(userId) && isValidId(userId);
 
-      // 2. Daily Salat & Fasting Tracker Subcollection
+      // ─── 2. Daily Salat Logs ───────────────────────────────────────────────
       match /salat_logs/{logId} {
-        allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+        allow get:  if isOwner(userId) && isValidId(userId) && isValidId(logId);
         allow list: if isOwner(userId) && existing().userId == request.auth.uid;
 
-        allow create: if isOwner(userId) &&
-                         isValidId(userId) &&
-                         isValidId(logId) &&
-                         isValidSalatLog(incoming()) &&
-                         incoming().keys().hasAll([
+        allow create: if isOwner(userId)
+                      && isValidId(userId) && isValidId(logId)
+                      && isValidSalatLog(incoming())
+                      && incoming().keys().hasAll([
                            'userId', 'dateKey', 'fajr', 'dhuhr', 'asr', 'maghrib',
                            'isha', 'witr', 'duha', 'awwabin', 'tahajjud', 'fasting',
                            'createdAt', 'updatedAt'
-                         ]) &&
-                         incoming().keys().hasOnly([
+                         ])
+                      && incoming().keys().hasOnly([
                            'userId', 'dateKey', 'fajr', 'dhuhr', 'asr', 'maghrib',
                            'isha', 'witr', 'duha', 'awwabin', 'tahajjud', 'fasting',
                            'createdAt', 'updatedAt'
                          ]);
 
-        allow update: if isOwner(userId) &&
-                         isValidId(userId) &&
-                         isValidId(logId) &&
-                         isValidSalatLog(incoming()) &&
-                         incoming().userId == existing().userId &&
-                         incoming().dateKey == existing().dateKey &&
-                         incoming().createdAt == existing().createdAt &&
-                         incoming().diff(existing()).affectedKeys().hasOnly([
+        allow update: if isOwner(userId)
+                      && isValidId(userId) && isValidId(logId)
+                      && isValidSalatLog(incoming())
+                      && incoming().userId    == existing().userId
+                      && incoming().dateKey   == existing().dateKey
+                      && incoming().createdAt == existing().createdAt
+                      && incoming().diff(existing()).affectedKeys().hasOnly([
                            'fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'witr',
                            'duha', 'awwabin', 'tahajjud', 'fasting', 'updatedAt'
                          ]);
@@ -151,35 +145,33 @@ service cloud.firestore {
         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(logId);
       }
 
-      // 3. Quran Bookmarks Subcollection
+      // ─── 3. Quran Bookmarks ────────────────────────────────────────────────
       match /bookmarks/{bookmarkId} {
-        allow get: if isOwner(userId) && isValidId(userId) && isValidId(bookmarkId);
+        allow get:  if isOwner(userId) && isValidId(userId) && isValidId(bookmarkId);
         allow list: if isOwner(userId) && existing().userId == request.auth.uid;
 
-        allow create: if isOwner(userId) &&
-                         isValidId(userId) &&
-                         isValidId(bookmarkId) &&
-                         isValidQuranBookmark(incoming()) &&
-                         incoming().keys().hasAll([
+        allow create: if isOwner(userId)
+                      && isValidId(userId) && isValidId(bookmarkId)
+                      && isValidQuranBookmark(incoming())
+                      && incoming().keys().hasAll([
                            'userId', 'surahNumber', 'ayahNumber', 'surahNameBn',
                            'surahNameEn', 'arabicPreview', 'translationPreview',
                            'note', 'createdAt', 'updatedAt'
-                         ]) &&
-                         incoming().keys().hasOnly([
+                         ])
+                      && incoming().keys().hasOnly([
                            'userId', 'surahNumber', 'ayahNumber', 'surahNameBn',
                            'surahNameEn', 'arabicPreview', 'translationPreview',
                            'note', 'createdAt', 'updatedAt'
                          ]);
 
-        allow update: if isOwner(userId) &&
-                         isValidId(userId) &&
-                         isValidId(bookmarkId) &&
-                         isValidQuranBookmark(incoming()) &&
-                         incoming().userId == existing().userId &&
-                         incoming().surahNumber == existing().surahNumber &&
-                         incoming().ayahNumber == existing().ayahNumber &&
-                         incoming().createdAt == existing().createdAt &&
-                         incoming().diff(existing()).affectedKeys().hasOnly([
+        allow update: if isOwner(userId)
+                      && isValidId(userId) && isValidId(bookmarkId)
+                      && isValidQuranBookmark(incoming())
+                      && incoming().userId      == existing().userId
+                      && incoming().surahNumber == existing().surahNumber
+                      && incoming().ayahNumber  == existing().ayahNumber
+                      && incoming().createdAt   == existing().createdAt
+                      && incoming().diff(existing()).affectedKeys().hasOnly([
                            'note', 'updatedAt'
                          ]);
 

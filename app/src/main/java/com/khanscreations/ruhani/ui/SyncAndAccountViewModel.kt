@@ -16,9 +16,11 @@ import com.khanscreations.ruhani.domain.OfflineContentAndSyncManager
 import com.khanscreations.ruhani.domain.PendingSyncRecord
 import com.khanscreations.ruhani.domain.RuhaniNotificationItem
 import com.khanscreations.ruhani.domain.RuhaniPushNotificationManager
+import com.khanscreations.ruhani.domain.FirebaseAuthManager
 import com.khanscreations.ruhani.domain.SecureAuthAndPrivacyManager
 import com.khanscreations.ruhani.domain.UpdateChecker
 import com.khanscreations.ruhani.domain.UpdateInfo
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -280,67 +282,80 @@ class SyncAndAccountViewModel(
         password: String,
         privacyConsent: Boolean
     ) {
-        val result = SecureAuthAndPrivacyManager.registerWithEmailPassword(
-            context = appContext,
-            displayName = displayName,
-            email = email,
-            password = password,
-            privacyConsentAccepted = privacyConsent
-        )
-        result.onSuccess { session ->
-            prefs.edit()
-                .putBoolean("onboarded", true)
-                .putBoolean("guest_mode", false)
-                .putString("display_name", session.displayName)
-                .apply()
+        if (!privacyConsent) {
             _syncAndAccountState.update {
-                it.copy(
-                    hasCompletedOnboarding = true,
-                    isGuestMode = false,
-                    currentUserId = session.userId,
-                    userEmail = session.email,
-                    displayName = session.displayName,
-                    authProvider = session.authProvider,
-                    errorMessage = null,
-                    syncStatusMessage = "ইমেইল অ্যাকাউন্ট নিবন্ধন সফল হয়েছে (${session.email})"
-                )
+                it.copy(errorMessage = "অনুগ্রহ করে গোপনীয়তা নীতিমালা (Privacy Policy) সম্মতি দিন।")
             }
-        }.onFailure { err ->
-            _syncAndAccountState.update { it.copy(errorMessage = err.message ?: "নিবন্ধন ব্যর্থ হয়েছে") }
+            return
+        }
+        scope.launch {
+            _syncAndAccountState.update { it.copy(syncStatusMessage = "নিবন্ধন প্রক্রিয়া চলছে...") }
+            val result = FirebaseAuthManager.registerWithEmailPassword(displayName, email, password)
+            result.onSuccess { firebaseUser ->
+                prefs.edit()
+                    .putBoolean("onboarded", true)
+                    .putBoolean("guest_mode", false)
+                    .putString("display_name", firebaseUser.displayName ?: displayName)
+                    .apply()
+                _syncAndAccountState.update {
+                    it.copy(
+                        hasCompletedOnboarding = true,
+                        isGuestMode = false,
+                        currentUserId = firebaseUser.uid,
+                        userEmail = firebaseUser.email,
+                        displayName = firebaseUser.displayName ?: displayName.ifBlank { "মুসলিম ব্যবহারকারী" },
+                        authProvider = "EMAIL_PASSWORD",
+                        errorMessage = null,
+                        syncStatusMessage = "ইমেইল অ্যাকাউন্ট নিবন্ধন সফল হয়েছে (${firebaseUser.email})"
+                    )
+                }
+            }.onFailure { err ->
+                _syncAndAccountState.update {
+                    it.copy(
+                        errorMessage = err.message ?: "নিবন্ধন ব্যর্থ হয়েছে",
+                        syncStatusMessage = null
+                    )
+                }
+            }
         }
     }
 
     fun loginWithEmailPassword(email: String, password: String) {
-        val result = SecureAuthAndPrivacyManager.loginWithEmailPassword(
-            context = appContext,
-            email = email,
-            password = password
-        )
-        result.onSuccess { session ->
-            prefs.edit()
-                .putBoolean("onboarded", true)
-                .putBoolean("guest_mode", false)
-                .putString("display_name", session.displayName)
-                .apply()
-            _syncAndAccountState.update {
-                it.copy(
-                    hasCompletedOnboarding = true,
-                    isGuestMode = false,
-                    currentUserId = session.userId,
-                    userEmail = session.email,
-                    displayName = session.displayName,
-                    authProvider = session.authProvider,
-                    errorMessage = null,
-                    syncStatusMessage = "সফলভাবে লগইন সম্পন্ন হয়েছে (${session.email})"
-                )
+        scope.launch {
+            _syncAndAccountState.update { it.copy(syncStatusMessage = "লগইন প্রক্রিয়া চলছে...") }
+            val result = FirebaseAuthManager.loginWithEmailPassword(email, password)
+            result.onSuccess { firebaseUser ->
+                prefs.edit()
+                    .putBoolean("onboarded", true)
+                    .putBoolean("guest_mode", false)
+                    .putString("display_name", firebaseUser.displayName ?: "মুসলিম ব্যবহারকারী")
+                    .apply()
+                _syncAndAccountState.update {
+                    it.copy(
+                        hasCompletedOnboarding = true,
+                        isGuestMode = false,
+                        currentUserId = firebaseUser.uid,
+                        userEmail = firebaseUser.email,
+                        displayName = firebaseUser.displayName?.takeIf { n -> n.isNotBlank() } ?: "মুসলিম ব্যবহারকারী",
+                        authProvider = "EMAIL_PASSWORD",
+                        errorMessage = null,
+                        syncStatusMessage = "সফলভাবে লগইন সম্পন্ন হয়েছে (${firebaseUser.email})"
+                    )
+                }
+            }.onFailure { err ->
+                _syncAndAccountState.update {
+                    it.copy(
+                        errorMessage = err.message ?: "লগইন ব্যর্থ হয়েছে",
+                        syncStatusMessage = null
+                    )
+                }
             }
-        }.onFailure { err ->
-            _syncAndAccountState.update { it.copy(errorMessage = err.message ?: "লগইন ব্যর্থ হয়েছে") }
         }
     }
 
     fun signOutUserSession() {
         SecureAuthAndPrivacyManager.signOutLocalSession(appContext)
+        FirebaseAuthManager.signOut()
         _syncAndAccountState.update {
             it.copy(
                 currentUserId = null,
