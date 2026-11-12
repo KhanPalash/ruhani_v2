@@ -3023,7 +3023,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Ruhani (রুহানি) v1.0",
+                        text = "Ruhani (রুহানি) v${com.example.BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )

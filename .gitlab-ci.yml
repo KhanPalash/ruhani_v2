@@ -1,0 +1,41 @@
+# GitLab CI equivalent of .github/workflows/build-apk.yml
+
+image: mingc/android-build-box:latest
+
+stages:
+  - build
+
+variables:
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+build_debug_apk:
+  stage: build
+  timeout: 25 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+  before_script:
+    - if [ ! -f .env ]; then cp .env.example .env; fi
+    - |
+      if [ ! -f debug.keystore ]; then
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+      fi
+    - chmod +x ./gradlew
+  script:
+    - ./gradlew assembleDebug --stacktrace
+    - echo "Built APK files:"
+    - ls -la app/build/outputs/apk/debug/
+  artifacts:
+    name: ruhani-v2-debug-apk
+    paths:
+      - app/build/outputs/apk/debug/*.apk
+    expire_in: 14 days
+    when: on_success
