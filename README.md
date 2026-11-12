@@ -109,6 +109,21 @@ Open the project in Android Studio and run on a device or emulator, or use Gradl
 ./gradlew assembleDebug
 ```
 
+#### Troubleshooting: `bad interpreter: Permission denied`
+
+On native Android terminals (e.g. Termux), `./gradlew` can fail with `bad interpreter: Permission denied` because `/bin/sh` does not exist at the path in the script's shebang. Run the wrapper through `bash` instead:
+
+```bash
+bash gradlew assembleDebug
+```
+
+If Gradle cannot write to its default home directory on your device, point it to a writable location with the `GRADLE_USER_HOME` environment variable:
+
+```bash
+export GRADLE_USER_HOME="$HOME/.gradle"
+bash gradlew assembleDebug
+```
+
 ---
 
 ## Project Structure
