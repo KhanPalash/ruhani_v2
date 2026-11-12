@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -625,7 +627,7 @@ object OfflineContentAndSyncManager {
 
     fun getDownloadedArticleIds(context: Context): Set<String> {
         val prefs = context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE)
-        return prefs.getStringSet(KEY_DOWNLOADED_ARTICLES, setOf("art_khushu_salat")) ?: setOf("art_khushu_salat")
+        return prefs.getStringSet(KEY_DOWNLOADED_ARTICLES, emptySet()) ?: emptySet()
     }
 
     fun getArticleProgressMap(context: Context): Map<String, Int> {
@@ -720,7 +722,7 @@ object OfflineContentAndSyncManager {
                 dir.walkTopDown().filter { it.isFile }.forEach { totalBytes += it.length() }
             }
         }
-        return ((totalBytes / 1024L).toInt()).coerceAtLeast(380)
+        return (totalBytes / 1024L).toInt()
     }
 
     fun clearAllOfflineFiles(context: Context) {
@@ -766,11 +768,19 @@ object OfflineContentAndSyncManager {
  */
 object RuhaniPushNotificationManager {
 
+    private const val NOTIF_PREFS = "ruhani_notifications_vault"
+    private const val KEY_STORED_NOTIFS = "stored_notifs_json"
     private var notificationIdCounter = 4001
 
     fun ensureNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .build()
+            val defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
             NotificationCategory.entries.forEach { category ->
                 val importance = when (category) {
                     NotificationCategory.WAQT_AZAN -> NotificationManager.IMPORTANCE_HIGH
@@ -784,6 +794,8 @@ object RuhaniPushNotificationManager {
                 ).apply {
                     description = category.titleEn
                     enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 350, 200, 350)
+                    setSound(defaultSound, audioAttributes)
                 }
                 nm.createNotificationChannel(channel)
             }
@@ -801,6 +813,57 @@ object RuhaniPushNotificationManager {
         }
     }
 
+    fun getStoredNotifications(context: Context): List<RuhaniNotificationItem> {
+        val prefs = context.getSharedPreferences(NOTIF_PREFS, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_STORED_NOTIFS, null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            val list = mutableListOf<RuhaniNotificationItem>()
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val catName = obj.optString("category", NotificationCategory.WAQT_AZAN.name)
+                val cat = runCatching { NotificationCategory.valueOf(catName) }.getOrDefault(NotificationCategory.WAQT_AZAN)
+                list.add(
+                    RuhaniNotificationItem(
+                        id = obj.optString("id"),
+                        category = cat,
+                        titleBn = obj.optString("titleBn"),
+                        messageBn = obj.optString("messageBn"),
+                        timestampLabel = obj.optString("timestampLabel"),
+                        isRead = obj.optBoolean("isRead", false)
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveStoredNotifications(context: Context, list: List<RuhaniNotificationItem>) {
+        val prefs = context.getSharedPreferences(NOTIF_PREFS, Context.MODE_PRIVATE)
+        val arr = JSONArray()
+        list.take(50).forEach { item ->
+            arr.put(
+                JSONObject().apply {
+                    put("id", item.id)
+                    put("category", item.category.name)
+                    put("titleBn", item.titleBn)
+                    put("messageBn", item.messageBn)
+                    put("timestampLabel", item.timestampLabel)
+                    put("isRead", item.isRead)
+                }
+            )
+        }
+        prefs.edit().putString(KEY_STORED_NOTIFS, arr.toString()).apply()
+    }
+
+    fun markAllNotificationsRead(context: Context): List<RuhaniNotificationItem> {
+        val updated = getStoredNotifications(context).map { it.copy(isRead = true) }
+        saveStoredNotifications(context, updated)
+        return updated
+    }
+
     fun sendNotification(
         context: Context,
         category: NotificationCategory,
@@ -808,6 +871,8 @@ object RuhaniPushNotificationManager {
         message: String
     ): RuhaniNotificationItem {
         ensureNotificationChannels(context)
+
+        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
         if (hasNotificationPermission(context)) {
             try {
@@ -827,10 +892,12 @@ object RuhaniPushNotificationManager {
                 )
 
                 val notification = NotificationCompat.Builder(context, category.channelId)
-                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setSmallIcon(R.drawable.ic_nav_prayer)
                     .setContentTitle(title)
                     .setContentText(message)
                     .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                    .setSound(soundUri)
+                    .setVibrate(longArrayOf(0, 350, 200, 350))
                     .setPriority(
                         if (category == NotificationCategory.WAQT_AZAN) {
                             NotificationCompat.PRIORITY_HIGH
@@ -849,7 +916,7 @@ object RuhaniPushNotificationManager {
         }
 
         val timeLabel = SimpleDateFormat("hh:mm a", Locale.US).format(Date())
-        return RuhaniNotificationItem(
+        val item = RuhaniNotificationItem(
             id = "notif_${System.currentTimeMillis()}_${notificationIdCounter++}",
             category = category,
             titleBn = title,
@@ -857,34 +924,11 @@ object RuhaniPushNotificationManager {
             timestampLabel = timeLabel,
             isRead = false
         )
-    }
 
-    fun buildInitialNotifications(
-        nextWaqtLabelBn: String,
-        tasbihToday: Int,
-        lastReadSurahBn: String,
-        lastReadAyah: Int
-    ): List<RuhaniNotificationItem> = listOf(
-        RuhaniNotificationItem(
-            id = "init_waqt",
-            category = NotificationCategory.WAQT_AZAN,
-            titleBn = "আসন্ন ওয়াক্ত রিমাইন্ডার: $nextWaqtLabelBn",
-            messageBn = "জামাতের সাথে সালাত আদায়ের প্রস্তুতি নিন এবং ওযু সম্পন্ন করুন।",
-            timestampLabel = "১০ মিনিট আগে"
-        ),
-        RuhaniNotificationItem(
-            id = "init_personal",
-            category = NotificationCategory.PERSONALIZED,
-            titleBn = "আপনার কুরআন ও তাসবিহ অগ্রগতি",
-            messageBn = "সর্বশেষ তিলাওয়াত: সূরা $lastReadSurahBn (আয়াত $lastReadAyah)। আজ তাসবিহ পাঠ করেছেন $tasbihToday বার।",
-            timestampLabel = "১ ঘণ্টা আগে"
-        ),
-        RuhaniNotificationItem(
-            id = "init_content",
-            category = NotificationCategory.NEW_CONTENT,
-            titleBn = "নতুন অফলাইন প্রবন্ধ ও হাদিস সংযোজন",
-            messageBn = "‘নামাজে খুশু-খুজু অর্জনের ১০টি পরীক্ষিত উপায়’ প্রবন্ধ এবং সহীহ বুখারী বাংলা অধ্যায় অফলাইনে পড়ার জন্য প্রস্তুত।",
-            timestampLabel = "আজ"
-        )
-    )
+        // Persist real notification into local storage
+        val existing = getStoredNotifications(context)
+        saveStoredNotifications(context, listOf(item) + existing)
+
+        return item
+    }
 }
