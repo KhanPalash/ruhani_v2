@@ -3,6 +3,8 @@
 image: mingc/android-build-box:latest
 
 stages:
+  - test
+  - lint
   - build
 
 variables:
@@ -15,13 +17,14 @@ cache:
     - .gradle/wrapper
     - .gradle/caches
 
-build_debug_apk:
-  stage: build
-  timeout: 25 minutes
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_PIPELINE_SOURCE == "web"
+# Shared rules: run on MRs, the default branch, and manual web pipelines.
+.default_rules: &default_rules
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  - if: $CI_PIPELINE_SOURCE == "web"
+
+# Shared setup: provide .env, a debug keystore, and an executable wrapper.
+.android_setup:
   before_script:
     - if [ ! -f .env ]; then cp .env.example .env; fi
     - |
@@ -29,6 +32,43 @@ build_debug_apk:
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
       fi
     - chmod +x ./gradlew
+
+unit_tests:
+  extends: .android_setup
+  stage: test
+  timeout: 20 minutes
+  rules: *default_rules
+  script:
+    - ./gradlew testDebugUnitTest --stacktrace
+  artifacts:
+    name: ruhani-v2-unit-test-results
+    paths:
+      - app/build/reports/tests/
+    reports:
+      junit: app/build/test-results/testDebugUnitTest/TEST-*.xml
+    expire_in: 14 days
+    when: always
+
+lint:
+  extends: .android_setup
+  stage: lint
+  timeout: 20 minutes
+  rules: *default_rules
+  script:
+    - ./gradlew lintDebug --stacktrace
+  artifacts:
+    name: ruhani-v2-lint-results
+    paths:
+      - app/build/reports/lint-results-debug.html
+      - app/build/reports/lint-results-debug.xml
+    expire_in: 14 days
+    when: always
+
+build_debug_apk:
+  extends: .android_setup
+  stage: build
+  timeout: 25 minutes
+  rules: *default_rules
   script:
     - ./gradlew assembleDebug --stacktrace
     - echo "Built APK files:"
