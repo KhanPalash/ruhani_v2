@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
 data class WorshipToolsUiState(
     val currentTab: MainTab = MainTab.HOME,
@@ -148,18 +149,18 @@ class WorshipToolsViewModel(
             else -> existing
         }
 
-        prefs.edit()
-            .putBoolean("salat_${dateKey}_fajr", updated.fajr)
-            .putBoolean("salat_${dateKey}_dhuhr", updated.dhuhr)
-            .putBoolean("salat_${dateKey}_asr", updated.asr)
-            .putBoolean("salat_${dateKey}_maghrib", updated.maghrib)
-            .putBoolean("salat_${dateKey}_isha", updated.isha)
-            .putBoolean("salat_${dateKey}_witr", updated.witr)
-            .putBoolean("salat_${dateKey}_duha", updated.duha)
-            .putBoolean("salat_${dateKey}_awwabin", updated.awwabin)
-            .putBoolean("salat_${dateKey}_tahajjud", updated.tahajjud)
-            .putBoolean("salat_${dateKey}_fasting", updated.fasting)
-            .apply()
+        prefs.edit {
+            putBoolean("salat_${dateKey}_fajr", updated.fajr)
+            putBoolean("salat_${dateKey}_dhuhr", updated.dhuhr)
+            putBoolean("salat_${dateKey}_asr", updated.asr)
+            putBoolean("salat_${dateKey}_maghrib", updated.maghrib)
+            putBoolean("salat_${dateKey}_isha", updated.isha)
+            putBoolean("salat_${dateKey}_witr", updated.witr)
+            putBoolean("salat_${dateKey}_duha", updated.duha)
+            putBoolean("salat_${dateKey}_awwabin", updated.awwabin)
+            putBoolean("salat_${dateKey}_tahajjud", updated.tahajjud)
+            putBoolean("salat_${dateKey}_fasting", updated.fasting)
+        }
 
         val queue = OfflineContentAndSyncManager.enqueuePendingSyncAction(
             context = appContext,
@@ -193,14 +194,14 @@ class WorshipToolsViewModel(
             "witr" -> s.copy(qazaWitr = (s.qazaWitr + delta).coerceAtLeast(0L))
             else -> s
         }
-        prefs.edit()
-            .putLong("qaza_fajr", nextState.qazaFajr)
-            .putLong("qaza_dhuhr", nextState.qazaDhuhr)
-            .putLong("qaza_asr", nextState.qazaAsr)
-            .putLong("qaza_maghrib", nextState.qazaMaghrib)
-            .putLong("qaza_isha", nextState.qazaIsha)
-            .putLong("qaza_witr", nextState.qazaWitr)
-            .apply()
+        prefs.edit {
+            putLong("qaza_fajr", nextState.qazaFajr)
+            putLong("qaza_dhuhr", nextState.qazaDhuhr)
+            putLong("qaza_asr", nextState.qazaAsr)
+            putLong("qaza_maghrib", nextState.qazaMaghrib)
+            putLong("qaza_isha", nextState.qazaIsha)
+            putLong("qaza_witr", nextState.qazaWitr)
+        }
         _worshipToolsState.value = nextState
         onQazaChanged?.invoke()
     }

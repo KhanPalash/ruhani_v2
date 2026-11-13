@@ -2,7 +2,7 @@ package com.khanscreations.ruhani.ui.screens
 
 import android.Manifest
 import android.content.Intent
-import android.net.Uri
+
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -123,6 +123,7 @@ import com.khanscreations.ruhani.ui.theme.RuhaniHalkaDarkBrush
 import com.khanscreations.ruhani.ui.theme.ruhaniCardBrush
 import com.khanscreations.ruhani.ui.theme.SignalRed
 import com.khanscreations.ruhani.ui.theme.SpaceGroteskFontFamily
+import androidx.core.net.toUri
 
 data class EssentialFeatureCardModel(
     val id: String,
@@ -1340,7 +1341,7 @@ fun HomeDashboardScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                        val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                         context.startActivity(intent)
                     }
             ) {

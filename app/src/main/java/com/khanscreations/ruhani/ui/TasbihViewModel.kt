@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import androidx.core.content.edit
 
 data class TasbihUiState(
     val selectedTasbihPreset: TasbihPreset = RuhaniContentCatalog.tasbihPresets.first(),
@@ -105,11 +106,11 @@ class TasbihViewModel(
     fun selectTasbihPreset(preset: TasbihPreset) {
         val savedCount = _tasbihState.value.tasbihCountsByPreset[preset.id]
             ?: prefs.getInt("tasbih_preset_count_${preset.id}", 0)
-        prefs.edit()
-            .putString("selected_tasbih_preset_id", preset.id)
-            .putInt("tasbih_target", preset.defaultTarget)
-            .putInt("tasbih_current", savedCount)
-            .apply()
+        prefs.edit {
+            putString("selected_tasbih_preset_id", preset.id)
+            putInt("tasbih_target", preset.defaultTarget)
+            putInt("tasbih_current", savedCount)
+        }
         _tasbihState.update {
             it.copy(
                 selectedTasbihPreset = preset,
@@ -122,7 +123,7 @@ class TasbihViewModel(
 
     fun updateTasbihTarget(target: Int) {
         val safeTarget = target.coerceAtLeast(1)
-        prefs.edit().putInt("tasbih_target", safeTarget).apply()
+        prefs.edit { putInt("tasbih_target", safeTarget) }
         _tasbihState.update { state ->
             val clampedCount = state.tasbihCurrentCount.coerceAtMost(safeTarget)
             state.copy(
@@ -156,13 +157,13 @@ class TasbihViewModel(
         val presetId = s.selectedTasbihPreset.id
         val updatedPresetCounts = s.tasbihCountsByPreset + (presetId to nextCount)
 
-        prefs.edit()
-            .putInt("tasbih_current", nextCount)
-            .putInt("tasbih_cycle", nextCycle)
-            .putInt("tasbih_preset_count_$presetId", nextCount)
-            .putInt("tasbih_today", nextToday)
-            .putLong("tasbih_all_time", nextAllTime)
-            .apply()
+        prefs.edit {
+            putInt("tasbih_current", nextCount)
+            putInt("tasbih_cycle", nextCycle)
+            putInt("tasbih_preset_count_$presetId", nextCount)
+            putInt("tasbih_today", nextToday)
+            putLong("tasbih_all_time", nextAllTime)
+        }
 
         _tasbihState.update {
             it.copy(
@@ -190,11 +191,11 @@ class TasbihViewModel(
     fun confirmTasbihReset() {
         val presetId = _tasbihState.value.selectedTasbihPreset.id
         val updatedPresetCounts = _tasbihState.value.tasbihCountsByPreset + (presetId to 0)
-        prefs.edit()
-            .putInt("tasbih_current", 0)
-            .putInt("tasbih_cycle", 1)
-            .putInt("tasbih_preset_count_$presetId", 0)
-            .apply()
+        prefs.edit {
+            putInt("tasbih_current", 0)
+            putInt("tasbih_cycle", 1)
+            putInt("tasbih_preset_count_$presetId", 0)
+        }
         _tasbihState.update {
             it.copy(
                 tasbihCurrentCount = 0,
@@ -209,11 +210,11 @@ class TasbihViewModel(
         val presetId = _tasbihState.value.selectedTasbihPreset.id
         val nextCycle = (_tasbihState.value.tasbihCycle % _tasbihState.value.tasbihTotalCycles) + 1
         val updatedPresetCounts = _tasbihState.value.tasbihCountsByPreset + (presetId to 0)
-        prefs.edit()
-            .putInt("tasbih_current", 0)
-            .putInt("tasbih_cycle", nextCycle)
-            .putInt("tasbih_preset_count_$presetId", 0)
-            .apply()
+        prefs.edit {
+            putInt("tasbih_current", 0)
+            putInt("tasbih_cycle", nextCycle)
+            putInt("tasbih_preset_count_$presetId", 0)
+        }
         _tasbihState.update {
             it.copy(
                 tasbihCurrentCount = 0,
@@ -237,14 +238,14 @@ class TasbihViewModel(
         if (_tasbihState.value.tasbihVibrationEnabled) {
             triggerHapticTap()
         }
-        prefs.edit().putInt("dua_count_$duaId", next).apply()
+        prefs.edit { putInt("dua_count_$duaId", next) }
         _tasbihState.update { state ->
             state.copy(duaCountsById = state.duaCountsById + (duaId to next))
         }
     }
 
     fun resetDuaCount(duaId: String) {
-        prefs.edit().putInt("dua_count_$duaId", 0).apply()
+        prefs.edit { putInt("dua_count_$duaId", 0) }
         _tasbihState.update { state ->
             state.copy(duaCountsById = state.duaCountsById + (duaId to 0))
         }
@@ -253,7 +254,7 @@ class TasbihViewModel(
     fun toggleFavoriteDua(duaId: String) {
         val currentFavs = _tasbihState.value.favoriteDuaIds
         val nextFavs = if (duaId in currentFavs) currentFavs - duaId else currentFavs + duaId
-        prefs.edit().putStringSet("favorite_duas", nextFavs).apply()
+        prefs.edit { putStringSet("favorite_duas", nextFavs) }
         _tasbihState.update { it.copy(favoriteDuaIds = nextFavs) }
     }
 

@@ -104,7 +104,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import android.content.Intent
-import android.net.Uri
+
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -114,6 +114,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import com.khanscreations.ruhani.domain.UpdateInfo
+import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -625,7 +626,6 @@ private fun RuhaniBottomNavigationBar(
     }
 }
 
-
 @Composable
 fun QuranGlobalMiniPlayer(
     uiState: RuhaniUiState,
@@ -784,7 +784,7 @@ fun UpdateAvailableDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                            val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                             context.startActivity(intent)
                         }
                         .padding(vertical = 4.dp),
@@ -804,7 +804,7 @@ fun UpdateAvailableDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.releaseUrl))
+                val intent = Intent(Intent.ACTION_VIEW, info.releaseUrl.toUri())
                 context.startActivity(intent)
                 onDismiss()
             }) {
@@ -892,7 +892,7 @@ fun KhansCreationsAdDialog(
                 Row(
                     modifier = Modifier
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                            val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                             context.startActivity(intent)
                         }
                         .padding(vertical = 4.dp),
@@ -914,7 +914,7 @@ fun KhansCreationsAdDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                    val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                     context.startActivity(intent)
                     onDismiss()
                 },
@@ -953,7 +953,7 @@ fun KhansCreationsFooterBar() {
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                    val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                     context.startActivity(intent)
                 }
                 .padding(vertical = 4.dp, horizontal = 12.dp),

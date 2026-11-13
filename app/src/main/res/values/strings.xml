@@ -1,16 +1,10 @@
 <resources>
     <string name="app_name">Ruhani</string>
-    <string name="app_tagline_bn">ইসলামি জীবনযাপন, ইবাদত ও কুরআন শিক্ষার বিশ্বস্ত সঙ্গী</string>
-    <string name="sign_in_with_google">Sign in with Google</string>
-    <string name="sign_in_with_google_bn">Google দিয়ে সাইন ইন করুন (ক্লাউড সিঙ্ক)</string>
-    <string name="continue_guest_bn">গেস্ট হিসেবে চালিয়ে যান (অফলাইন মোড)</string>
-    <string name="nav_home_bn">হোম</string>
-    <string name="nav_quran_bn">কুরআন</string>
-    <string name="nav_prayer_bn">নামাজ</string>
-    <string name="nav_more_bn">আরও</string>
-    <string name="nav_home_en">Home</string>
-    <string name="nav_quran_en">Quran</string>
-    <string name="nav_prayer_en">Prayer</string>
-    <string name="nav_more_en">More</string>
+
+    <!--
+      Google Sign-In web client id. Kept in sync with app/google-services.json
+      (the google-services plugin generates the same value into its generated
+      resources, which override this one at merge time).
+    -->
     <string name="default_web_client_id" translatable="false">828442646802-0rfdu4fh4a8k5f4lss22i03oeikfnlj1.apps.googleusercontent.com</string>
 </resources>

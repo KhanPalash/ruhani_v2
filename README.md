@@ -91,6 +91,26 @@ cd ruhani_v2
 > `google-services.json` downloaded afterwards. Google Sign-In also needs an OAuth
 > client for the new package name with the same SHA-1 fingerprint.
 
+### 3. Register your debug SHA-1 (required for Google Sign-In)
+
+Google Sign-In authenticates your app by its signing certificate. Every machine's
+debug keystore is different, so **each developer must register their own SHA-1
+fingerprint** in Firebase — otherwise Google Sign-In fails with `ApiException: 10
+(DEVELOPER_ERROR)` even though the build succeeds.
+
+Get your fingerprint and add it under
+**Project settings → Your apps → (Android app) → Add fingerprint**:
+
+```bash
+keytool -list -v -alias androiddebugkey \
+  -keystore debug.keystore -storepass android
+```
+
+(On Linux, `~/.android/debug.keystore` is the default Android Studio debug
+keystore; this repo also ships a project-local `debug.keystore` used by the
+`debugConfig` signing config.) Release builds need the **upload key's** SHA-1
+registered the same way.
+
 ### 3. Configure secrets
 
 Create a `local.properties` file in the root (if not already present) and add your keys:

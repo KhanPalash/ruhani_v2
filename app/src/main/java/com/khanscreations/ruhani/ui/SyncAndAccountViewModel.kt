@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
 data class SyncAndAccountUiState(
     val hasCompletedOnboarding: Boolean = false,
@@ -237,10 +238,10 @@ class SyncAndAccountViewModel(
     }
 
     fun completeOnboarding(asGuest: Boolean) {
-        prefs.edit()
-            .putBoolean("onboarded", true)
-            .putBoolean("guest_mode", asGuest)
-            .apply()
+        prefs.edit {
+            putBoolean("onboarded", true)
+            putBoolean("guest_mode", asGuest)
+        }
         _syncAndAccountState.update {
             it.copy(
                 hasCompletedOnboarding = true,
@@ -250,13 +251,13 @@ class SyncAndAccountViewModel(
     }
 
     fun updateThemeMode(mode: String) {
-        prefs.edit().putString("theme_mode", mode).apply()
+        prefs.edit { putString("theme_mode", mode) }
         _syncAndAccountState.update { it.copy(themeMode = mode) }
         syncProfileToCloud()
     }
 
     fun updateLanguage(lang: String) {
-        prefs.edit().putString("language", lang).apply()
+        prefs.edit { putString("language", lang) }
         _syncAndAccountState.update { it.copy(language = lang) }
         syncProfileToCloud()
     }
@@ -266,7 +267,7 @@ class SyncAndAccountViewModel(
     }
 
     fun updateProfileDetails(name: String, phone: String) {
-        prefs.edit().putString("display_name", name).apply()
+        prefs.edit { putString("display_name", name) }
         _syncAndAccountState.update {
             it.copy(
                 displayName = name.ifBlank { "মুসলিম ব্যবহারকারী" },
@@ -292,11 +293,11 @@ class SyncAndAccountViewModel(
             _syncAndAccountState.update { it.copy(syncStatusMessage = "নিবন্ধন প্রক্রিয়া চলছে...") }
             val result = FirebaseAuthManager.registerWithEmailPassword(displayName, email, password)
             result.onSuccess { firebaseUser ->
-                prefs.edit()
-                    .putBoolean("onboarded", true)
-                    .putBoolean("guest_mode", false)
-                    .putString("display_name", firebaseUser.displayName ?: displayName)
-                    .apply()
+                prefs.edit {
+                    putBoolean("onboarded", true)
+                    putBoolean("guest_mode", false)
+                    putString("display_name", firebaseUser.displayName ?: displayName)
+                }
                 _syncAndAccountState.update {
                     it.copy(
                         hasCompletedOnboarding = true,
@@ -325,11 +326,11 @@ class SyncAndAccountViewModel(
             _syncAndAccountState.update { it.copy(syncStatusMessage = "লগইন প্রক্রিয়া চলছে...") }
             val result = FirebaseAuthManager.loginWithEmailPassword(email, password)
             result.onSuccess { firebaseUser ->
-                prefs.edit()
-                    .putBoolean("onboarded", true)
-                    .putBoolean("guest_mode", false)
-                    .putString("display_name", firebaseUser.displayName ?: "মুসলিম ব্যবহারকারী")
-                    .apply()
+                prefs.edit {
+                    putBoolean("onboarded", true)
+                    putBoolean("guest_mode", false)
+                    putString("display_name", firebaseUser.displayName ?: "মুসলিম ব্যবহারকারী")
+                }
                 _syncAndAccountState.update {
                     it.copy(
                         hasCompletedOnboarding = true,
@@ -418,7 +419,7 @@ class SyncAndAccountViewModel(
 
     fun deleteAccountAndLocalData() {
         SecureAuthAndPrivacyManager.deleteAccountAndWipeLocalData(appContext)
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
         _syncAndAccountState.update {
             it.copy(
                 currentUserId = null,
@@ -438,17 +439,17 @@ class SyncAndAccountViewModel(
         when (prefKey) {
             "new_content" -> {
                 val next = !s.notifyNewContentAlerts
-                prefs.edit().putBoolean("notify_new_content", next).apply()
+                prefs.edit { putBoolean("notify_new_content", next) }
                 _syncAndAccountState.update { it.copy(notifyNewContentAlerts = next) }
             }
             "important_updates" -> {
                 val next = !s.notifyImportantUpdates
-                prefs.edit().putBoolean("notify_important_updates", next).apply()
+                prefs.edit { putBoolean("notify_important_updates", next) }
                 _syncAndAccountState.update { it.copy(notifyImportantUpdates = next) }
             }
             "personalized_activity" -> {
                 val next = !s.notifyPersonalizedActivity
-                prefs.edit().putBoolean("notify_personalized_activity", next).apply()
+                prefs.edit { putBoolean("notify_personalized_activity", next) }
                 _syncAndAccountState.update { it.copy(notifyPersonalizedActivity = next) }
             }
         }

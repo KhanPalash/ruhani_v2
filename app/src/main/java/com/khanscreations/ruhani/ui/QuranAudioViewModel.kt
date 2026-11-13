@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
 data class QuranAudioUiState(
     val selectedSurah: QuranSurah = QuranCatalog.surahs.first(),
@@ -564,7 +565,7 @@ class QuranAudioViewModel(
             )
             if (success) {
                 val updatedKeys = _quranAudioState.value.downloadedAyahKeys + key
-                prefs.edit().putStringSet("downloaded_ayah_keys", updatedKeys).apply()
+                prefs.edit { putStringSet("downloaded_ayah_keys", updatedKeys) }
                 val newSize = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext)
                 _quranAudioState.update { state ->
                     state.copy(
@@ -587,7 +588,7 @@ class QuranAudioViewModel(
             OfflineContentAndSyncManager.removeOfflineSurah(appContext, surahNumber)
             val newSize = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext)
             val updated = current.downloadedSurahIds - surahNumber
-            prefs.edit().putStringSet("downloaded_surah_ids", updated.map { it.toString() }.toSet()).apply()
+            prefs.edit { putStringSet("downloaded_surah_ids", updated.map { it.toString() }.toSet()) }
             _quranAudioState.update { state ->
                 state.copy(downloadedSurahIds = updated)
             }
@@ -601,7 +602,7 @@ class QuranAudioViewModel(
                 OfflineContentAndSyncManager.downloadSurahForOffline(appContext, surah, reciterKey)
                 val newSize = OfflineContentAndSyncManager.calculateOfflineStorageSizeKb(appContext)
                 val updated = _quranAudioState.value.downloadedSurahIds + surahNumber
-                prefs.edit().putStringSet("downloaded_surah_ids", updated.map { it.toString() }.toSet()).apply()
+                prefs.edit { putStringSet("downloaded_surah_ids", updated.map { it.toString() }.toSet()) }
                 _quranAudioState.update { state ->
                     state.copy(
                         downloadedSurahIds = updated,

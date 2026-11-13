@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.content.Intent
+import androidx.core.net.toUri
 
 /**
  * Google Maps embed that searches for mosques around a coordinate and lists the
@@ -56,7 +57,7 @@ fun NearbyMosqueMapCard(
     val context = LocalContext.current
     val coord = "$lat,$lon"
     val embedUrl = remember(coord) {
-        Uri.parse("https://maps.google.com/maps")
+        "https://maps.google.com/maps".toUri()
             .buildUpon()
             .appendQueryParameter("q", "mosque")
             .appendQueryParameter("ll", coord)
@@ -125,7 +126,7 @@ fun NearbyMosqueMapCard(
             OutlinedButton(
                 onClick = {
                     // Full-screen fallback for turn-by-turn navigation.
-                    val mapUri = Uri.parse("geo:$coord?q=${Uri.encode("mosque")}&z=15")
+                    val mapUri = "geo:$coord?q=${Uri.encode("mosque")}&z=15".toUri()
                     val mapIntent = Intent(Intent.ACTION_VIEW, mapUri)
                     runCatching { context.startActivity(mapIntent) }
                 },

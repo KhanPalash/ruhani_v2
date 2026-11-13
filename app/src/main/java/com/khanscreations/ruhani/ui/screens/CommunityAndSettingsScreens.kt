@@ -135,6 +135,7 @@ import com.khanscreations.ruhani.ui.theme.NoorMintLuminous
 import com.khanscreations.ruhani.ui.theme.NoorRedAlert
 import com.khanscreations.ruhani.ui.theme.SpaceGroteskFontFamily
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 data class MoreMenuItem(
     val titleBn: String,
@@ -337,7 +338,7 @@ fun MoreHubScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                        val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                         context.startActivity(intent)
                     }
             ) {
@@ -1238,7 +1239,7 @@ fun NearbyMosquesScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedButton(
                         onClick = {
-                            val mapUri = Uri.parse("geo:0,0?q=${Uri.encode(mosque.nameEn + " " + mosque.district)}")
+                            val mapUri = "geo:0,0?q=${Uri.encode(mosque.nameEn + " " + mosque.district)}".toUri()
                             val mapIntent = Intent(Intent.ACTION_VIEW, mapUri)
                             try {
                                 context.startActivity(mapIntent)
@@ -1913,7 +1914,7 @@ fun HaramainLiveScreen(
                                 val url = if (isMakkah) "https://www.youtube.com/results?search_query=Makkah+Live+Official"
                                 else "https://www.youtube.com/results?search_query=Madinah+Live+Official"
                                 try {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                                 } catch (_: Exception) {
                                 }
                             }
@@ -3042,7 +3043,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                        val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                         context.startActivity(intent)
                     }
             ) {
@@ -3567,7 +3568,7 @@ fun OnboardingAndAuthScreen(
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.clickable {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://khanscreations.com"))
+                        val intent = Intent(Intent.ACTION_VIEW, "https://khanscreations.com".toUri())
                         context.startActivity(intent)
                     }
                 )

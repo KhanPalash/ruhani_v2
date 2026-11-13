@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- P3 cleanup from the code review: the 19 commented-out dependency declarations in `app/build.gradle.kts` and their now-unused version-catalog entries were removed (kept as dead weight only for "easy to re-add", which git history already provides). Unused resources were deleted (7 template colors, 12 unused strings), the three density-less bitmap drawables moved to `drawable-nodpi`, one always-true `Build.VERSION.SDK_INT` check was simplified, and README now documents that each developer must register their own debug SHA-1 in Firebase for Google Sign-In to work. 51 `SharedPreferences.edit()`/`Uri.parse`/`Color.parseColor` call sites were modernised to the AndroidX KTX extensions (`edit { }`, `toUri()`, `toColorInt()`). Lint warnings drop from 121 to 24 — the remainder are the deliberately pinned dependency versions and the launcher-icon shape guidance.
+
 - Release builds now run R8 (`isMinifyEnabled`) and the resource shrinker (`isShrinkResources`). The debug APK drops from 25.9 MB to 4.8 MB. `proguard-rules.pro` keeps the Firestore document models (`UserProfile`, `SalatLog`, `QuranBookmark`) that `toObject()`/`toObjects()` instantiate reflectively, the `@ServerTimestamp`/`@DocumentId` annotations, and the enum `values()`/`valueOf()` members used to read stored setting names back. `res/raw/keep.xml` protects the Firebase configuration strings that `FirebaseOptions` looks up by name through `Resources.getIdentifier`, which the resource shrinker cannot see.
 
 

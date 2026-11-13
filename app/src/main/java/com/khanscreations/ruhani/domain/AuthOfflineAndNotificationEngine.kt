@@ -35,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.core.content.edit
 
 data class LocalAuthSession(
     val userId: String,
@@ -192,10 +193,10 @@ object SecureAuthAndPrivacyManager {
             privacyAnalyticsMinimize = prefs.getBoolean(KEY_PRIVACY_DATA_MINIMIZATION, true)
         )
 
-        prefs.edit()
-            .putString(KEY_ACCOUNTS_JSON, accounts.toString())
-            .putString(KEY_ACTIVE_SESSION_JSON, sessionToJson(session).toString())
-            .apply()
+        prefs.edit {
+            putString(KEY_ACCOUNTS_JSON, accounts.toString())
+            putString(KEY_ACTIVE_SESSION_JSON, sessionToJson(session).toString())
+        }
 
         return Result.success(session)
     }
@@ -240,16 +241,14 @@ object SecureAuthAndPrivacyManager {
             privacyAnalyticsMinimize = prefs.getBoolean(KEY_PRIVACY_DATA_MINIMIZATION, true)
         )
 
-        prefs.edit()
-            .putString(KEY_ACTIVE_SESSION_JSON, sessionToJson(session).toString())
-            .apply()
+        prefs.edit { putString(KEY_ACTIVE_SESSION_JSON, sessionToJson(session).toString()) }
 
         return Result.success(session)
     }
 
     fun signOutLocalSession(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove(KEY_ACTIVE_SESSION_JSON).apply()
+        prefs.edit { remove(KEY_ACTIVE_SESSION_JSON) }
     }
 
     fun updatePrivacyPreferences(
@@ -259,11 +258,11 @@ object SecureAuthAndPrivacyManager {
         dataMinimization: Boolean
     ) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean(KEY_PRIVACY_CLOUD_SYNC, cloudSyncConsent)
-            .putBoolean(KEY_PRIVACY_PERSONAL_ALERTS, personalizedAlertsConsent)
-            .putBoolean(KEY_PRIVACY_DATA_MINIMIZATION, dataMinimization)
-            .apply()
+        prefs.edit {
+            putBoolean(KEY_PRIVACY_CLOUD_SYNC, cloudSyncConsent)
+            putBoolean(KEY_PRIVACY_PERSONAL_ALERTS, personalizedAlertsConsent)
+            putBoolean(KEY_PRIVACY_DATA_MINIMIZATION, dataMinimization)
+        }
     }
 
     fun exportUserDataJson(
@@ -298,12 +297,12 @@ object SecureAuthAndPrivacyManager {
         if (activeEmail != null) {
             val accounts = JSONObject(authPrefs.getString(KEY_ACCOUNTS_JSON, "{}") ?: "{}")
             accounts.remove(activeEmail)
-            authPrefs.edit()
-                .putString(KEY_ACCOUNTS_JSON, accounts.toString())
-                .remove(KEY_ACTIVE_SESSION_JSON)
-                .apply()
+            authPrefs.edit {
+                putString(KEY_ACCOUNTS_JSON, accounts.toString())
+                remove(KEY_ACTIVE_SESSION_JSON)
+            }
         } else {
-            authPrefs.edit().clear().apply()
+            authPrefs.edit { clear() }
         }
         // Clear offline cached files as part of right-to-erasure
         OfflineContentAndSyncManager.clearAllOfflineFiles(context)
@@ -556,7 +555,7 @@ object OfflineContentAndSyncManager {
             val prefs = context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE)
             val existingSet = prefs.getStringSet(KEY_DOWNLOADED_AUDIO_SURAHS, emptySet())?.toMutableSet() ?: mutableSetOf()
             existingSet.add(surah.number.toString())
-            prefs.edit().putStringSet(KEY_DOWNLOADED_AUDIO_SURAHS, existingSet).apply()
+            prefs.edit { putStringSet(KEY_DOWNLOADED_AUDIO_SURAHS, existingSet) }
 
             Result.success((downloadedBytes / 1024).coerceAtLeast(64))
         } catch (e: Exception) {
@@ -574,7 +573,7 @@ object OfflineContentAndSyncManager {
         val prefs = context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE)
         val existingSet = prefs.getStringSet(KEY_DOWNLOADED_AUDIO_SURAHS, emptySet())?.toMutableSet() ?: mutableSetOf()
         existingSet.remove(surahNumber.toString())
-        prefs.edit().putStringSet(KEY_DOWNLOADED_AUDIO_SURAHS, existingSet).apply()
+        prefs.edit { putStringSet(KEY_DOWNLOADED_AUDIO_SURAHS, existingSet) }
     }
 
     suspend fun downloadArticleForOffline(
@@ -609,7 +608,7 @@ object OfflineContentAndSyncManager {
             val prefs = context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE)
             val set = prefs.getStringSet(KEY_DOWNLOADED_ARTICLES, emptySet())?.toMutableSet() ?: mutableSetOf()
             set.add(article.id)
-            prefs.edit().putStringSet(KEY_DOWNLOADED_ARTICLES, set).apply()
+            prefs.edit { putStringSet(KEY_DOWNLOADED_ARTICLES, set) }
             Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)
@@ -622,7 +621,7 @@ object OfflineContentAndSyncManager {
         val prefs = context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE)
         val set = prefs.getStringSet(KEY_DOWNLOADED_ARTICLES, emptySet())?.toMutableSet() ?: mutableSetOf()
         set.remove(articleId)
-        prefs.edit().putStringSet(KEY_DOWNLOADED_ARTICLES, set).apply()
+        prefs.edit { putStringSet(KEY_DOWNLOADED_ARTICLES, set) }
     }
 
     fun getDownloadedArticleIds(context: Context): Set<String> {
@@ -647,7 +646,7 @@ object OfflineContentAndSyncManager {
         val prefs = context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE)
         val current = JSONObject(prefs.getString(KEY_ARTICLE_PROGRESS, "{}") ?: "{}")
         current.put(articleId, progressPercent.coerceIn(0, 100))
-        prefs.edit().putString(KEY_ARTICLE_PROGRESS, current.toString()).apply()
+        prefs.edit { putString(KEY_ARTICLE_PROGRESS, current.toString()) }
         return getArticleProgressMap(context)
     }
 
@@ -672,7 +671,7 @@ object OfflineContentAndSyncManager {
             put("timestampEpochMs", System.currentTimeMillis())
         }
         existingArr.put(itemObj)
-        prefs.edit().putString(KEY_PENDING_SYNC_QUEUE, existingArr.toString()).apply()
+        prefs.edit { putString(KEY_PENDING_SYNC_QUEUE, existingArr.toString()) }
         return getPendingSyncQueue(context)
     }
 
@@ -702,10 +701,10 @@ object OfflineContentAndSyncManager {
     fun markQueueSynchronized(context: Context): String {
         val nowFormatted = SimpleDateFormat("hh:mm a, dd MMM", Locale.US).format(Date())
         val prefs = context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString(KEY_PENDING_SYNC_QUEUE, "[]")
-            .putString(KEY_LAST_SYNC_TIME, nowFormatted)
-            .apply()
+        prefs.edit {
+            putString(KEY_PENDING_SYNC_QUEUE, "[]")
+            putString(KEY_LAST_SYNC_TIME, nowFormatted)
+        }
         return nowFormatted
     }
 
@@ -730,7 +729,7 @@ object OfflineContentAndSyncManager {
             val dir = File(context.filesDir, folder)
             if (dir.exists()) dir.deleteRecursively()
         }
-        context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE).edit().clear().apply()
+        context.getSharedPreferences(PREFS_OFFLINE, Context.MODE_PRIVATE).edit { clear() }
     }
 
     private fun downloadBinaryOrCreateOfflineHeader(urlStr: String, targetFile: File): Int {
@@ -855,7 +854,7 @@ object RuhaniPushNotificationManager {
                 }
             )
         }
-        prefs.edit().putString(KEY_STORED_NOTIFS, arr.toString()).apply()
+        prefs.edit { putString(KEY_STORED_NOTIFS, arr.toString()) }
     }
 
     fun markAllNotificationsRead(context: Context): List<RuhaniNotificationItem> {
@@ -879,11 +878,9 @@ object RuhaniPushNotificationManager {
                 val intent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 }
-                val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // minSdk 24 > M, so FLAG_IMMUTABLE is always available.
+                val pendingIntentFlags =
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                } else {
-                    PendingIntent.FLAG_UPDATE_CURRENT
-                }
                 val pendingIntent = PendingIntent.getActivity(
                     context,
                     notificationIdCounter,

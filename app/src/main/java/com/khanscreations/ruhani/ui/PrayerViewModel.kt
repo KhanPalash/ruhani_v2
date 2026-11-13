@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
 /**
  * True while the district should follow the device location on each launch.
@@ -170,10 +171,10 @@ class PrayerViewModel(
     fun updateDistrictFromLocation(district: BdDistrict) = applyDistrict(district, autoDetected = true)
 
     private fun applyDistrict(district: BdDistrict, autoDetected: Boolean) {
-        prefs.edit()
-            .putString("district", district.id)
-            .putBoolean(PREF_DISTRICT_AUTO, autoDetected)
-            .apply()
+        prefs.edit {
+            putString("district", district.id)
+            putBoolean(PREF_DISTRICT_AUTO, autoDetected)
+        }
         _prayerState.update { it.copy(selectedDistrict = district) }
         refreshPrayerSchedule()
         PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
@@ -181,7 +182,7 @@ class PrayerViewModel(
     }
 
     fun updateCalculationMethod(method: CalculationMethod) {
-        prefs.edit().putString("calc_method", method.id).apply()
+        prefs.edit { putString("calc_method", method.id) }
         _prayerState.update { it.copy(calculationMethod = method) }
         refreshPrayerSchedule()
         PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
@@ -189,7 +190,7 @@ class PrayerViewModel(
     }
 
     fun updateMadhhab(madhhab: Madhhab) {
-        prefs.edit().putString("madhhab", madhhab.id).apply()
+        prefs.edit { putString("madhhab", madhhab.id) }
         _prayerState.update { it.copy(madhhab = madhhab) }
         refreshPrayerSchedule()
         PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
@@ -198,7 +199,7 @@ class PrayerViewModel(
 
     fun updateHijriOffset(offsetDays: Int) {
         val clamped = offsetDays.coerceIn(-2, 2)
-        prefs.edit().putInt("hijri_offset", clamped).apply()
+        prefs.edit { putInt("hijri_offset", clamped) }
         _prayerState.update { it.copy(hijriOffsetDays = clamped) }
         refreshPrayerSchedule()
         PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
@@ -213,7 +214,7 @@ class PrayerViewModel(
     fun toggleAzanAlert(waqt: WaqtType) {
         val current = _prayerState.value.azanAlerts[waqt] ?: true
         val updated = !current
-        prefs.edit().putBoolean("azan_alert_${waqt.name}", updated).apply()
+        prefs.edit { putBoolean("azan_alert_${waqt.name}", updated) }
         _prayerState.update { state ->
             state.copy(azanAlerts = state.azanAlerts + (waqt to updated))
         }
@@ -227,7 +228,7 @@ class PrayerViewModel(
         // The account carries an explicit district choice, so stop overriding it
         // from the device location on every launch. Tapping "detect from
         // location" turns automatic detection back on.
-        prefs.edit().putBoolean(PREF_DISTRICT_AUTO, false).apply()
+        prefs.edit { putBoolean(PREF_DISTRICT_AUTO, false) }
         _prayerState.update {
             it.copy(
                 selectedDistrict = dist,

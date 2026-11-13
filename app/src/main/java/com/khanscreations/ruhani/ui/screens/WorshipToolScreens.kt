@@ -132,6 +132,7 @@ import com.khanscreations.ruhani.ui.theme.ruhaniCardBrush
 import com.khanscreations.ruhani.ui.theme.SignalRed
 import com.khanscreations.ruhani.ui.theme.SpaceGroteskFontFamily
 import kotlin.math.abs
+import androidx.core.graphics.toColorInt
 
 @Composable
 fun SubScreenHeader(
@@ -1652,10 +1653,10 @@ fun QiblaCompassScreen(
                                 )
                             }
                             val cardinals = listOf(
-                                Triple("N", 0.0, android.graphics.Color.parseColor("#F02828")),
-                                Triple("E", 90.0, android.graphics.Color.parseColor("#D8DCDD")),
-                                Triple("S", 180.0, android.graphics.Color.parseColor("#D8DCDD")),
-                                Triple("W", 270.0, android.graphics.Color.parseColor("#FFFFFF"))
+                                Triple("N", 0.0, "#F02828".toColorInt()),
+                                Triple("E", 90.0, "#D8DCDD".toColorInt()),
+                                Triple("S", 180.0, "#D8DCDD".toColorInt()),
+                                Triple("W", 270.0, "#FFFFFF".toColorInt())
                             )
                             val labelRadius = radius - 26.dp.toPx()
                             cardinals.forEach { (letter, angleDeg, colorInt) ->
