@@ -1156,107 +1156,16 @@ fun NearbyMosquesScreen(
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
-    val context = LocalContext.current
     val isBn = uiState.language == "bn"
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("nearby_mosques_screen"),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            SubScreenHeader(
-                titleBn = "নিকটস্থ মসজিদ ও জামাতের সময়",
-                titleEn = "Nearby Mosques & Jama'at",
-                subtitle = "নিজের এলাকার মসজিদ Google Maps-এ সার্চ করুন, পাশাপাশি বাংলাদেশের প্রসিদ্ধ মসজিদসমূহ ও জামাতের সময়সূচী",
-                isBn = isBn,
-                onBack = onBack
-            )
-        }
-
-        // Embedded Google Maps search for mosques around the selected district.
-        item {
-            NearbyMosqueMapCard(
-                isBn = isBn,
-                districtLabelBn = uiState.selectedDistrict.nameBn,
-                lat = uiState.selectedDistrict.latitude,
-                lon = uiState.selectedDistrict.longitude
-            )
-        }
-
-        items(RuhaniContentCatalog.mosqueList) { mosque ->
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = mosque.nameBn,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = NoorMintLuminous
-                            )
-                            Text(
-                                text = "${mosque.nameEn} • ${mosque.addressBn}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = NoorEmeraldPrimary.copy(alpha = 0.16f)
-                        ) {
-                            Text(
-                                text = mosque.distanceKm,
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = SpaceGroteskFontFamily),
-                                fontWeight = FontWeight.Bold,
-                                color = NoorMintLuminous,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "জামাত: ${mosque.jamaatSummaryBn}",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "জুমআ: ${mosque.jummahTimeBn} • সুবিধা: ${mosque.facilitiesBn}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = {
-                            val mapUri = "geo:0,0?q=${Uri.encode(mosque.nameEn + " " + mosque.district)}".toUri()
-                            val mapIntent = Intent(Intent.ACTION_VIEW, mapUri)
-                            try {
-                                context.startActivity(mapIntent)
-                            } catch (_: Exception) {
-                            }
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isBn) "ম্যাপে দিকনির্দেশনা দেখুন" else "Open in Google Maps")
-                    }
-                }
-            }
-        }
-    }
+    // Full-screen map — no header, no static list, just the embed.
+    NearbyMosqueMapCard(
+        isBn = isBn,
+        districtLabelBn = uiState.selectedDistrict.nameBn,
+        lat = uiState.selectedDistrict.latitude,
+        lon = uiState.selectedDistrict.longitude,
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable
