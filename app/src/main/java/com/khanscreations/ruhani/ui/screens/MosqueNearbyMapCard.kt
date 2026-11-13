@@ -1,5 +1,6 @@
 package com.khanscreations.ruhani.ui.screens
 
+import android.util.Log
 import android.annotation.SuppressLint
 import android.net.Uri
 import android.webkit.WebView
@@ -25,14 +26,13 @@ import androidx.core.net.toUri
 /**
  * Full-screen Google Maps embed showing mosques around a coordinate.
  *
- * Uses the Google Maps web search URL. The page may return an intent:// URL
- * to open the Google Maps app; we intercept that and load the fallback HTTPS
- * URL so the map renders inside the WebView. No API key required.
+ * Uses the legacy `maps.google.com/maps?...&output=embed` page which
+ * renders an embeddable map with mosque pins. No Maps API key required.
  * Loads over HTTPS to keep network_security_config intact.
  */
 @SuppressLint(
     "SetJavaScriptEnabled"
-) // The Google Maps web page requires JavaScript; only a first-party google.com URL over HTTPS is loaded here
+) // The Google Maps embed page requires JavaScript; only a first-party maps.google.com URL over HTTPS is loaded here
 @Composable
 fun NearbyMosqueMapCard(
     isBn: Boolean,
@@ -44,7 +44,15 @@ fun NearbyMosqueMapCard(
     val context = LocalContext.current
     val coord = "$lat,$lon"
     val embedUrl = remember(coord) {
-        "https://www.google.com/maps/search/mosque/@${lat},${lon},15z".toUri().toString()
+        "https://maps.google.com/maps".toUri()
+            .buildUpon()
+            .appendQueryParameter("q", "mosque")
+            .appendQueryParameter("ll", coord)
+            .appendQueryParameter("sll", coord)
+            .appendQueryParameter("z", "15")
+            .appendQueryParameter("output", "embed")
+            .build()
+            .toString()
     }
 
     Surface(
@@ -64,30 +72,41 @@ fun NearbyMosqueMapCard(
                     // Intercept intent:// URLs and load the fallback HTTPS URL instead
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                            Log.d("NearbyMosqueMap", "shouldOverrideUrlLoading: $url")
                             if (url.startsWith("intent://")) {
-                                // Extract the fallback URL from the intent
                                 val fallbackStart = url.indexOf("S.browser_fallback_url=")
                                 if (fallbackStart >= 0) {
                                     var fallback = url.substring(fallbackStart + "S.browser_fallback_url=".length)
-                                    // Trim at next ; or end
                                     val semi = fallback.indexOf(';')
                                     if (semi >= 0) fallback = fallback.substring(0, semi)
-                                    // URL decode
                                     try {
                                         fallback = Uri.decode(fallback)
                                     } catch (_: Exception) { }
+                                    Log.d("NearbyMosqueMap", "Loading fallback: $fallback")
                                     view.loadUrl(fallback)
                                     return true
                                 }
                             }
                             return super.shouldOverrideUrlLoading(view, url)
                         }
+                        override fun onPageFinished(view: WebView, url: String) {
+                            super.onPageFinished(view, url)
+                            Log.d("NearbyMosqueMap", "onPageFinished: $url")
+                        }
+                        override fun onReceivedError(view: WebView, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError) {
+                            super.onReceivedError(view, request, error)
+                            Log.e("NearbyMosqueMap", "onReceivedError: ${error.description}")
+                        }
                     }
+                    Log.d("NearbyMosqueMap", "Loading URL: $embedUrl")
                     loadUrl(embedUrl)
                 }
             },
             update = { webView ->
-                if (webView.url != embedUrl) webView.loadUrl(embedUrl)
+                if (webView.url != embedUrl) {
+                    Log.d("NearbyMosqueMap", "Reloading URL: $embedUrl")
+                    webView.loadUrl(embedUrl)
+                }
             },
             onRelease = { webView ->
                 webView.destroy()
