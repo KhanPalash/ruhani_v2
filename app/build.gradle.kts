@@ -44,7 +44,11 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      // Ship a stripped release: R8 removes unused code and the resource
+      // shrinker removes unused resources. Both need a device smoke test after
+      // any dependency bump, because R8 only runs on this variant.
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       // Do not remove or modify this signingConfig assignment. It is necessary for Android apps in
       // AI Studio.

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Resources that the resource shrinker cannot see a reference to.
+
+  FirebaseOptions.fromResource() looks the google-services values up by *name*
+  through Resources.getIdentifier("google_app_id", "string", packageName).
+  Because the reference is a runtime string, `isShrinkResources` would remove
+  these strings from the release APK and FirebaseAuth/FirebaseFirestore would
+  then fail to initialise with "FirebaseApp with name [DEFAULT] doesn't exist".
+
+  firestore_database_id and default_web_client_id are referenced from Kotlin
+  (R.string.*) so they survive anyway, but they are listed here so the whole
+  Firebase configuration is kept together and a future refactor cannot silently
+  break it.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/google_app_id,@string/gcm_defaultSenderId,@string/google_api_key,@string/google_crash_reporting_api_key,@string/google_storage_bucket,@string/project_id,@string/firestore_database_id,@string/default_web_client_id" />
