@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- District auto-detection from approximate location. A "Detect district from location" control on the first-run screen and in Settings asks for `ACCESS_COARSE_LOCATION`, converts a single fix into the nearest of the 64 built-in districts, and applies it (prayer times, Qibla and alarms update immediately). Once granted, the district is re-checked on launch so the app follows the user when they travel. Picking a district by hand — or restoring one from the cloud profile — turns automatic detection off, and the setting can be re-enabled from the same button. No coordinate is stored, logged or uploaded, `ACCESS_FINE_LOCATION` is not requested, and the feature is skipped entirely when the permission is denied.
+
+### Changed
+
+- Release builds now run R8 (`isMinifyEnabled`) and the resource shrinker (`isShrinkResources`). The debug APK drops from 25.9 MB to 4.8 MB. `proguard-rules.pro` keeps the Firestore document models (`UserProfile`, `SalatLog`, `QuranBookmark`) that `toObject()`/`toObjects()` instantiate reflectively, the `@ServerTimestamp`/`@DocumentId` annotations, and the enum `values()`/`valueOf()` members used to read stored setting names back. `res/raw/keep.xml` protects the Firebase configuration strings that `FirebaseOptions` looks up by name through `Resources.getIdentifier`, which the resource shrinker cannot see.
+
+
 ## [2.0.1] - 2026-11-13
 
 ### Added

@@ -250,6 +250,7 @@ fun RuhaniAppRoot() {
                 OnboardingAndAuthScreen(
                     uiState = uiState,
                     onSelectDistrict = ruhaniViewModel::updateDistrict,
+                    onAutoDetectedDistrict = ruhaniViewModel::updateDistrictFromLocation,
                     onSelectMadhhab = ruhaniViewModel::updateMadhhab,
                     onCompleteOnboarding = { isGuest ->
                         ruhaniViewModel.completeOnboarding(isGuest)
@@ -478,6 +479,7 @@ fun RuhaniAppRoot() {
                             onUpdateLanguage = ruhaniViewModel::updateLanguage,
                             onToggleBanglaDigits = ruhaniViewModel::toggleBanglaDigits,
                             onUpdateDistrict = ruhaniViewModel::updateDistrict,
+                            onAutoDetectedDistrict = ruhaniViewModel::updateDistrictFromLocation,
                             onUpdateMethod = ruhaniViewModel::updateCalculationMethod,
                             onUpdateMadhhab = ruhaniViewModel::updateMadhhab,
                             onToggleTasbihVibration = ruhaniViewModel::toggleTasbihVibration,

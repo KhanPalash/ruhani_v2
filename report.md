@@ -60,7 +60,10 @@ The `com.example` placeholder namespace is gone. `namespace` is now `com.khanscr
 `AndroidManifest.xml` previously set `android:usesCleartextTraffic="true"`. The flag has been removed and replaced with a scoped `app/src/main/res/xml/network_security_config.xml`: cleartext is denied for every host by default, and is permitted only for `localhost` / `127.0.0.1` / `10.0.2.2`, which the Firebase emulator suite uses in local development. Every production endpoint (Quran API, AlAdhan, Hisnul Muslim, Bangla Hadith, GitHub releases, Firebase) was already HTTPS, so no behaviour changed.
 
 ### P2 - Sensitive/permission-heavy manifest — **FIXED**
-`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` and `WAKE_LOCK` are now removed, along with the `android.hardware.location.gps` feature declaration. The app never requested location at runtime: prayer times and the Qibla bearing are derived from the built-in district catalogue (fixed coordinates), and `play-services-location` is not even on the classpath. `RECEIVE_BOOT_COMPLETED` is kept and justified — `BootReceiver` re-arms the prayer alarms after reboot, package replace, or a clock/timezone change.
+`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` and `WAKE_LOCK` were removed, along with the `android.hardware.location.gps` feature declaration; location was not used at runtime because prayer times and the Qibla bearing are derived from the built-in district catalogue (fixed coordinates). `RECEIVE_BOOT_COMPLETED` is kept and justified — `BootReceiver` re-arms the prayer alarms after reboot, package replace, or a clock/timezone change.
+
+> **Later revision (2026-11-13):** `ACCESS_COARSE_LOCATION` was added back for the optional "detect district from location" feature, but the privacy stance is unchanged: approximate location only (no `ACCESS_FINE_LOCATION`), one fix converted to the nearest district centroid and then discarded, no coordinate stored or uploaded. See `LocationDistrictResolver` and the note on the permission table in `README.md`.
+
 
 On exact alarms, the app keeps `SCHEDULE_EXACT_ALARM` and does **not** move to `USE_EXACT_ALARM`: the latter is auto-granted but Google Play restricts it to alarm-clock and calendar apps, while a prayer app's core function depends on a precise user-facing timer, which is exactly what `SCHEDULE_EXACT_ALARM` covers. The permission is user-grantable, so the app now asks for it rather than assuming it:
 
@@ -85,7 +88,7 @@ Turning on the lint stage also exposed that it was **red on `main`**: `lintDebug
 - No secrets are committed; keys flow through `.env` (gitignored) with `.env.example` as the template.
 - Verify `google-services.json` and `my-upload-key.jks` are gitignored (they are referenced only via env/paths, which is correct).
 - Cleartext traffic is denied by default via `res/xml/network_security_config.xml`; only the Firebase emulator loopback hosts are exempt.
-- The requested-permission footprint is now limited to `INTERNET`, `ACCESS_NETWORK_STATE`, `VIBRATE`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` and `SCHEDULE_EXACT_ALARM`. The app collects no device location.
+- The requested-permission footprint is now limited to `INTERNET`, `ACCESS_NETWORK_STATE`, `VIBRATE`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM` and (optional) `ACCESS_COARSE_LOCATION`. The app never asks for fine location and never stores a coordinate.
 
 ---
 

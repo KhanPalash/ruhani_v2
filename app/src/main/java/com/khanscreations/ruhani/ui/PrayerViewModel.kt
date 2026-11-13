@@ -8,6 +8,7 @@ import com.khanscreations.ruhani.domain.AstronomicalEngine
 import com.khanscreations.ruhani.domain.BdDistrict
 import com.khanscreations.ruhani.domain.CalculationMethod
 import com.khanscreations.ruhani.domain.DailyPrayerSchedule
+import com.khanscreations.ruhani.domain.LocationDistrictResolver
 import com.khanscreations.ruhani.domain.Madhhab
 import com.khanscreations.ruhani.domain.NotificationCategory
 import com.khanscreations.ruhani.domain.PrayerAlarmScheduler
@@ -23,6 +24,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+
+/**
+ * True while the district should follow the device location on each launch.
+ * Cleared when the user (or their cloud profile) picks a district by hand.
+ */
+private const val PREF_DISTRICT_AUTO = "district_auto"
 
 data class PrayerUiState(
     val selectedDistrict: BdDistrict = RuhaniContentCatalog.bdDistricts.first(),
@@ -63,6 +70,25 @@ class PrayerViewModel(
     init {
         PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
         startLivePrayerClock()
+        autoDetectDistrictIfEnabled()
+    }
+
+    /**
+     * Runs once per process start when the user has granted the approximate
+     * location permission and has not picked a district by hand. The detected
+     * district only replaces the stored one when it actually differs, so this
+     * does not churn the saved profile or the cloud sync on every launch.
+     */
+    private fun autoDetectDistrictIfEnabled() {
+        if (!prefs.getBoolean(PREF_DISTRICT_AUTO, true)) return
+        if (!LocationDistrictResolver.hasPermission(appContext)) return
+        scope.launch {
+            val detection = runCatching { LocationDistrictResolver.detect(appContext) }.getOrNull()
+                ?: return@launch
+            if (!detection.isWithinBangladesh) return@launch
+            if (detection.district.id == _prayerState.value.selectedDistrict.id) return@launch
+            applyDistrict(detection.district, autoDetected = true)
+        }
     }
 
     private fun loadInitialState(): PrayerUiState {
@@ -135,8 +161,19 @@ class PrayerViewModel(
         _prayerState.update { it.copy(schedule = updated) }
     }
 
-    fun updateDistrict(district: BdDistrict) {
-        prefs.edit().putString("district", district.id).apply()
+    fun updateDistrict(district: BdDistrict) = applyDistrict(district, autoDetected = false)
+
+    /**
+     * District produced by [LocationDistrictResolver]. Keeps automatic detection
+     * enabled so the next launch re-checks the location (the user may travel).
+     */
+    fun updateDistrictFromLocation(district: BdDistrict) = applyDistrict(district, autoDetected = true)
+
+    private fun applyDistrict(district: BdDistrict, autoDetected: Boolean) {
+        prefs.edit()
+            .putString("district", district.id)
+            .putBoolean(PREF_DISTRICT_AUTO, autoDetected)
+            .apply()
         _prayerState.update { it.copy(selectedDistrict = district) }
         refreshPrayerSchedule()
         PrayerAlarmScheduler.schedulePrayerAlarms(appContext)
@@ -187,6 +224,10 @@ class PrayerViewModel(
         val dist = RuhaniContentCatalog.findDistrict(districtId)
         val method = CalculationMethod.fromId(methodId)
         val madhhab = Madhhab.fromId(madhhabId)
+        // The account carries an explicit district choice, so stop overriding it
+        // from the device location on every launch. Tapping "detect from
+        // location" turns automatic detection back on.
+        prefs.edit().putBoolean(PREF_DISTRICT_AUTO, false).apply()
         _prayerState.update {
             it.copy(
                 selectedDistrict = dist,

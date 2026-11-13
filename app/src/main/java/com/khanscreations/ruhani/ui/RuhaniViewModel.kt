@@ -562,6 +562,8 @@ class RuhaniViewModel(
 
     fun updateDistrict(district: BdDistrict) = prayerViewModel.updateDistrict(district)
 
+    fun updateDistrictFromLocation(district: BdDistrict) = prayerViewModel.updateDistrictFromLocation(district)
+
     fun updateCalculationMethod(method: CalculationMethod) = prayerViewModel.updateCalculationMethod(method)
 
     fun updateMadhhab(madhhab: Madhhab) = prayerViewModel.updateMadhhab(madhhab)

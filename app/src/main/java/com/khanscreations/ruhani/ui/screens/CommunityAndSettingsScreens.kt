@@ -2715,7 +2715,8 @@ fun SettingsScreen(
     onUpdateMethod: (CalculationMethod) -> Unit,
     onUpdateMadhhab: (Madhhab) -> Unit,
     onToggleTasbihVibration: () -> Unit = {},
-    onToggleTasbihSound: () -> Unit = {}
+    onToggleTasbihSound: () -> Unit = {},
+    onAutoDetectedDistrict: (BdDistrict) -> Unit = onUpdateDistrict
 ) {
     BackHandler { onBack() }
     val isBn = uiState.language == "bn"
@@ -2912,6 +2913,13 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("জেলা পরিবর্তন করুন: ${uiState.selectedDistrict.nameBn} (${uiState.selectedDistrict.nameEn})")
                     }
+
+                    // Approximate-location detection: one tap instead of scrolling 64 districts.
+                    AutoDetectDistrictButton(
+                        isBn = isBn,
+                        onDetected = onAutoDetectedDistrict,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -3087,7 +3095,8 @@ fun OnboardingAndAuthScreen(
     onSelectMadhhab: (Madhhab) -> Unit,
     onCompleteOnboarding: (Boolean) -> Unit,
     onRegisterEmailPassword: (String, String, String, Boolean) -> Unit = { _, _, _, _ -> },
-    onLoginEmailPassword: (String, String) -> Unit = { _, _ -> }
+    onLoginEmailPassword: (String, String) -> Unit = { _, _ -> },
+    onAutoDetectedDistrict: (BdDistrict) -> Unit = onSelectDistrict
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -3248,6 +3257,16 @@ fun OnboardingAndAuthScreen(
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
+
+                        // Lets a first-run user skip the 64-district list entirely.
+                        AutoDetectDistrictButton(
+                            isBn = uiState.language == "bn",
+                            onDetected = onAutoDetectedDistrict,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentColor = Color.White,
+                            containerColor = Color(0xFF1E2C26),
+                            borderColor = Color(0xFF283A32)
+                        )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Madhhab.entries.forEach { m ->

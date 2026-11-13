@@ -169,10 +169,13 @@ The app supports the following user-configurable settings:
 | `VIBRATE` | Tasbih and notification feedback |
 | `RECEIVE_BOOT_COMPLETED` | Re-arm prayer alarms after reboot or a clock/timezone change |
 | `SCHEDULE_EXACT_ALARM` | Fire Azan alerts at the exact prayer time (user-granted on Android 12+) |
+| `ACCESS_COARSE_LOCATION` | Optional: map one approximate fix onto the nearest of the 64 built-in districts |
 
-The app does **not** request device location. Prayer times and the Qibla bearing are
-calculated from the built-in district catalogue, so no location permission is collected
-or stored.
+The app never asks for `ACCESS_FINE_LOCATION`. Location is optional and only used when
+you tap **"Detect district from location"** (or on launch, once granted); a single
+approximate fix is converted into the nearest district from the built-in catalogue and
+then discarded. No coordinate is stored, logged, or uploaded — only the district id, and
+you can always pick a district by hand instead.
 
 All network traffic is HTTPS. `res/xml/network_security_config.xml` denies cleartext
 for every host except the loopback addresses used by the Firebase emulator in local

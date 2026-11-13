@@ -5,6 +5,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!--
+      Approximate location only, and only when the user taps "detect district".
+      One coarse fix is mapped onto the nearest of the 64 built-in district
+      centroids and then discarded, so prayer times and Qibla match the user's
+      actual district. ACCESS_FINE_LOCATION is deliberately NOT requested:
+      district-level accuracy is all this needs, and the app stores no location
+      history. Without the grant the app keeps the manually picked district.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Reschedules prayer alarms after reboot, package replace, or a clock/timezone change. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
