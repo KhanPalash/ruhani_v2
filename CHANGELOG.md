@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - District auto-detection from approximate location. A "Detect district from location" control on the first-run screen and in Settings asks for `ACCESS_COARSE_LOCATION`, converts a single fix into the nearest of the 64 built-in districts, and applies it (prayer times, Qibla and alarms update immediately). Once granted, the district is re-checked on launch so the app follows the user when they travel. Picking a district by hand — or restoring one from the cloud profile — turns automatic detection off, and the setting can be re-enabled from the same button. No coordinate is stored, logged or uploaded, `ACCESS_FINE_LOCATION` is not requested, and the feature is skipped entirely when the permission is denied.
+- Live "nearby mosques" map: the Nearby Mosques screen now opens with an embedded Google Maps search for mosques around the selected district, so users can pan and zoom their own area instead of only the built-in list of famous mosques. It uses the key-less `maps.google.com … output=embed` page over HTTPS (no Maps API key, no extra permission, HTTPS-only so the network-security policy is untouched), plus a one-tap hand-off to the Google Maps app for turn-by-turn navigation.
 
 ### Changed
 

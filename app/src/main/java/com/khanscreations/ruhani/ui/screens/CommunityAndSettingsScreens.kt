@@ -1169,9 +1169,19 @@ fun NearbyMosquesScreen(
             SubScreenHeader(
                 titleBn = "নিকটস্থ মসজিদ ও জামাতের সময়",
                 titleEn = "Nearby Mosques & Jama'at",
-                subtitle = "বাংলাদেশের প্রসিদ্ধ মসজিদসমূহ ও জামাতের সময়সূচী",
+                subtitle = "নিজের এলাকার মসজিদ Google Maps-এ সার্চ করুন, পাশাপাশি বাংলাদেশের প্রসিদ্ধ মসজিদসমূহ ও জামাতের সময়সূচী",
                 isBn = isBn,
                 onBack = onBack
+            )
+        }
+
+        // Embedded Google Maps search for mosques around the selected district.
+        item {
+            NearbyMosqueMapCard(
+                isBn = isBn,
+                districtLabelBn = uiState.selectedDistrict.nameBn,
+                lat = uiState.selectedDistrict.latitude,
+                lon = uiState.selectedDistrict.longitude
             )
         }
 
