@@ -1,4 +1,4 @@
-npm install -g firebase-toolspackage com.khanscreations.ruhani.domain
+package com.khanscreations.ruhani.domain
 
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
