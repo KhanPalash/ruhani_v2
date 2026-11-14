@@ -1157,15 +1157,79 @@ fun NearbyMosquesScreen(
 ) {
     BackHandler { onBack() }
     val isBn = uiState.language == "bn"
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coord = "${uiState.selectedDistrict.latitude},${uiState.selectedDistrict.longitude}"
 
-    // Full-screen map — no header, no static list, just the embed.
-    NearbyMosqueMapCard(
-        isBn = isBn,
-        districtLabelBn = uiState.selectedDistrict.nameBn,
-        lat = uiState.selectedDistrict.latitude,
-        lon = uiState.selectedDistrict.longitude,
-        modifier = Modifier.fillMaxSize()
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        NearbyMosqueMapCard(
+            isBn = isBn,
+            districtLabelBn = uiState.selectedDistrict.nameBn,
+            lat = uiState.selectedDistrict.latitude,
+            lon = uiState.selectedDistrict.longitude,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Floating top header bar with back button, district badge, and Google Maps shortcut
+        Surface(
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+            shape = RoundedCornerShape(20.dp),
+            shadowElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .align(Alignment.TopCenter)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isBn) "পেছনে যান" else "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Column {
+                        Text(
+                            text = if (isBn) "নিকটস্থ মসজিদ ও জামাত" else "Nearby Mosques",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isBn) uiState.selectedDistrict.nameBn else uiState.selectedDistrict.nameEn,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = {
+                        val mapUri = "geo:$coord?q=mosque&z=15".toUri()
+                        val mapIntent = Intent(Intent.ACTION_VIEW, mapUri)
+                        runCatching { context.startActivity(mapIntent) }
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.OpenInNew,
+                        contentDescription = if (isBn) "Google Maps অ্যাপে খুলুন" else "Open in Google Maps",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
