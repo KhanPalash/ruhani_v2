@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release builds now run R8 (`isMinifyEnabled`) and the resource shrinker (`isShrinkResources`). The debug APK drops from 25.9 MB to 4.8 MB. `proguard-rules.pro` keeps the Firestore document models (`UserProfile`, `SalatLog`, `QuranBookmark`) that `toObject()`/`toObjects()` instantiate reflectively, the `@ServerTimestamp`/`@DocumentId` annotations, and the enum `values()`/`valueOf()` members used to read stored setting names back. `res/raw/keep.xml` protects the Firebase configuration strings that `FirebaseOptions` looks up by name through `Resources.getIdentifier`, which the resource shrinker cannot see.
 
 
+## [2.0.2] - 2026-11-15
+
+### Fixed
+
+- **P0-1**: Double azan notification per prayer; Dhuhr firing ~5.5h early. Fixed `currentWaqt` logic in `AstronomicalEngine` — sunrise→Dhuhr gap now shows Fajr (not Dhuhr). UI updated to use `PrayerWindow` extensions instead of hardcoded `WaqtType` stubs.
+- **P0-2**: Failed Quran/audio downloads recorded as success with 1KB placeholder bytes. Removed placeholder-byte fallback in `downloadBinaryOrCreateOfflineHeader`; callers' size checks (`> 500L`) now correctly fail.
+- **P0-3**: "Delete Data" didn't delete Firebase Auth account or Firestore data. Added `deleteUserProfile()` to repository; `deleteAccountAndLocalData()` now calls `FirebaseAuthManager.deleteCurrentAccount()` and clears subcollections.
+- **Hardcoded prayer times**: 35-min wrong times in hero card. Removed `WaqtType` hardcoded stubs (`startFormatted`, `endFormatted`, `jamaatFormatted`); UI now uses real `PrayerWindow` extensions from engine.
+- **Nawafil index/separator bug**: Ishraq/Duha merged, Awwabin hardcoded fallback. Split into 4 items (Tahajjud, Ishraq, Duha, Awwabin); fixed UI indices and separator parsing (`" – "` vs `" - "`).
+- **Bangla digits not persisted**: Switch toggled but reset on restart. Added `putBoolean("use_bangla_digits")` and read in `loadInitialState()`.
+- **"Surah Surah" duplicate**: Double prefix in Surah titles. Changed `"Surah ${surah.nameEn}"` → `surah.nameEn` (name already has "Surah " prefix).
+
+### Changed
+
+- Updated version to **2.0.2** (`versionCode = 3`).
+
 ## [2.0.1] - 2026-11-13
 
 ### Added

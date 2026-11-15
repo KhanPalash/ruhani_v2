@@ -309,9 +309,10 @@ object AstronomicalEngine {
                 nextStartMin = dhuhrStart
             }
             nowTotalMinutes in sunriseMin until dhuhrStart -> {
-                activeWaqt = WaqtType.DHUHR
+                // Gap between sunrise and Dhuhr - no waqt is active, show last completed (Fajr) as reference
+                activeWaqt = WaqtType.FAJR
                 nextWaqt = WaqtType.DHUHR
-                activeStartSec = sunriseMin * 60
+                activeStartSec = fajrStart * 60
                 activeEndSec = dhuhrStart * 60
                 nextStartMin = dhuhrStart
             }
@@ -410,11 +411,18 @@ object AstronomicalEngine {
                 rangeText = "01:30 AM - ${formatMinutes12h(fajrStart - 15)}"
             ),
             NawafilWindow(
+                id = "ishraq",
+                titleBn = "ইশরাক (সূর্যোদয় পর ২০ মিনিট)",
+                titleEn = "Ishraq (20 min after Sunrise)",
+                subtitleBn = "সূর্য ওঠার ২০ মিনিট পর থেকে সূর্যstehenden লক্ষণ মোছা পর্যন্ত",
+                rangeText = "${formatMinutes12h(sunriseMin + 20)} - ${formatMinutes12h(sunriseMin + 45)}"
+            ),
+            NawafilWindow(
                 id = "duha",
-                titleBn = "ইশরাক ও চাশত (দুহা)",
-                titleEn = "Ishraq & Duha (Chasht)",
-                subtitleBn = "সূর্য ওঠার ২০ মিনিট পর থেকে দ্বিপ্রহরের আগ পর্যন্ত",
-                rangeText = "${formatMinutes12h(sunriseMin + 20)} - ${formatMinutes12h(solarNoonMin - 15)}"
+                titleBn = "চাশত (দুহা) / ইশরাকের পর",
+                titleEn = "Duha (Chasht)",
+                subtitleBn = "সূর্য ওঠার ৪৫ মিনিট পর থেকে দ্বিপ্রহরের আগ পর্যন্ত",
+                rangeText = "${formatMinutes12h(sunriseMin + 45)} - ${formatMinutes12h(solarNoonMin - 15)}"
             ),
             NawafilWindow(
                 id = "awwabin",

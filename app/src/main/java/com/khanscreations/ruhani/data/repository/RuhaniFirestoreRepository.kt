@@ -301,4 +301,24 @@ class RuhaniFirestoreRepository(private val db: FirebaseFirestore) {
             throw e
         }
     }
+
+    suspend fun deleteUserProfile(userId: String): Result<Unit> = runCatching {
+        // Delete subcollections first (bookmarks, salat_logs)
+        val userRef = db.collection("users").document(userId)
+        
+        // Delete bookmarks
+        val bookmarksSnap = userRef.collection("bookmarks").get().await()
+        bookmarksSnap.documents.forEach { doc ->
+            doc.reference.delete()
+        }
+        
+        // Delete salat logs
+        val salatLogsSnap = userRef.collection("salat_logs").get().await()
+        salatLogsSnap.documents.forEach { doc ->
+            doc.reference.delete()
+        }
+        
+        // Finally delete the user profile document
+        userRef.delete().await()
+    }
 }

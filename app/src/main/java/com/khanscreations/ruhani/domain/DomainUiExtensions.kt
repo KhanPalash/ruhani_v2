@@ -54,36 +54,6 @@ val WaqtType.rakahSummaryEn: String
         WaqtType.ISHA -> "4 Farz • 2 Sunnah • 3 Witr"
     }
 
-val WaqtType.startFormatted: String
-    get() = when (this) {
-        WaqtType.FAJR -> "05:02 AM"
-        WaqtType.SUNRISE -> "06:14 AM"
-        WaqtType.DHUHR -> "12:06 PM"
-        WaqtType.ASR -> "04:12 PM"
-        WaqtType.MAGHRIB -> "05:56 PM"
-        WaqtType.ISHA -> "07:12 PM"
-    }
-
-val WaqtType.endFormatted: String
-    get() = when (this) {
-        WaqtType.FAJR -> "06:13 AM"
-        WaqtType.SUNRISE -> "06:29 AM"
-        WaqtType.DHUHR -> "04:11 PM"
-        WaqtType.ASR -> "05:55 PM"
-        WaqtType.MAGHRIB -> "07:11 PM"
-        WaqtType.ISHA -> "04:55 AM"
-    }
-
-val WaqtType.jamaatFormatted: String
-    get() = when (this) {
-        WaqtType.FAJR -> "05:30 AM"
-        WaqtType.SUNRISE -> "--:--"
-        WaqtType.DHUHR -> "01:15 PM"
-        WaqtType.ASR -> "04:30 PM"
-        WaqtType.MAGHRIB -> "06:05 PM"
-        WaqtType.ISHA -> "08:00 PM"
-    }
-
 val PrayerWindow.nameBn: String get() = type.nameBn
 val PrayerWindow.nameEn: String get() = type.nameEn
 val PrayerWindow.arabicName: String get() = type.arabicName
@@ -126,13 +96,13 @@ val DailyPrayerSchedule.prohibitedSunsetRange: String
     get() = prohibitedIntervals.getOrNull(2)?.rangeText ?: "05:23 – 05:38 PM"
 
 val DailyPrayerSchedule.tahajjudRange: String
-    get() = nawafilPrayers.getOrNull(0)?.rangeText ?: "02:30 AM – 04:55 AM"
+    get() = nawafilPrayers.getOrNull(0)?.rangeText ?: "01:30 AM – 04:55 AM"
 
 val DailyPrayerSchedule.ishraqRange: String
-    get() = nawafilPrayers.getOrNull(1)?.rangeText ?: "06:35 AM – 08:30 AM"
+    get() = nawafilPrayers.getOrNull(1)?.rangeText ?: "06:35 AM – 06:55 AM"
 
 val DailyPrayerSchedule.duhaRange: String
-    get() = nawafilPrayers.getOrNull(2)?.rangeText ?: "08:30 AM – 11:45 AM"
+    get() = nawafilPrayers.getOrNull(2)?.rangeText ?: "06:55 AM – 11:45 AM"
 
 val DailyPrayerSchedule.awwabinRange: String
     get() = nawafilPrayers.getOrNull(3)?.rangeText ?: "06:05 PM – 07:10 PM"

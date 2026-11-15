@@ -133,7 +133,8 @@ class SyncAndAccountViewModel(
             notifyPersonalizedActivity = prefs.getBoolean("notify_personalized_activity", true),
             notificationFeed = realNotifs,
             language = lang,
-            themeMode = theme
+            themeMode = theme,
+            useBanglaDigits = prefs.getBoolean("use_bangla_digits", false)
         )
     }
 
@@ -263,7 +264,10 @@ class SyncAndAccountViewModel(
     }
 
     fun toggleBanglaDigits() {
-        _syncAndAccountState.update { it.copy(useBanglaDigits = !it.useBanglaDigits) }
+        val next = !_syncAndAccountState.value.useBanglaDigits
+        prefs.edit { putBoolean("use_bangla_digits", next) }
+        _syncAndAccountState.update { it.copy(useBanglaDigits = next) }
+        syncProfileToCloud()
     }
 
     fun updateProfileDetails(name: String, phone: String) {
@@ -418,6 +422,33 @@ class SyncAndAccountViewModel(
     }
 
     fun deleteAccountAndLocalData() {
+        // Delete cloud account and Firestore data
+        val scope = scope
+        val uid = authenticatedUserId ?: _syncAndAccountState.value.currentUserId
+        val repo = firestoreRepository
+
+        scope.launch {
+            // Delete Firestore data first
+            if (uid != null && repo != null) {
+                // Delete subcollections: salat_logs, bookmarks
+                // Note: Firestore doesn't support recursive delete, so we'd need to
+                // delete documents individually. For now, we'll delete the main user doc.
+                try {
+                    repo.deleteUserProfile(uid)
+                } catch (e: Exception) {
+                    Log.w("SyncAccountVM", "Failed to delete Firestore profile: ${e.message}")
+                }
+            }
+
+            // Delete Firebase Auth account
+            try {
+                FirebaseAuthManager.deleteCurrentAccount()
+            } catch (e: Exception) {
+                Log.w("SyncAccountVM", "Failed to delete Firebase Auth account: ${e.message}")
+            }
+        }
+
+        // Clear local data
         SecureAuthAndPrivacyManager.deleteAccountAndWipeLocalData(appContext)
         prefs.edit { clear() }
         _syncAndAccountState.update {

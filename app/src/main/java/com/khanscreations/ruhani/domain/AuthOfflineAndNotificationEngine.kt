@@ -753,10 +753,9 @@ object OfflineContentAndSyncManager {
             }
         } catch (_: Exception) {
         }
-        // Fallback offline audio marker if network is unreachable during download
-        val fallbackBytes = ByteArray(1024) { 0x49 }
-        targetFile.writeBytes(fallbackBytes)
-        return fallbackBytes.size
+        // Download failed - do NOT write placeholder bytes.
+        // Return 0 to indicate failure so callers can handle it properly.
+        return 0
     }
 }
 

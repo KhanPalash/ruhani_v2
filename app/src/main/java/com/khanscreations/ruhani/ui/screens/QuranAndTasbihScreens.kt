@@ -538,7 +538,7 @@ fun SurahReaderScreen(
                         }
                         Column {
                             Text(
-                                text = "Surah ${surah.nameEn}",
+                                text = surah.nameEn,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )

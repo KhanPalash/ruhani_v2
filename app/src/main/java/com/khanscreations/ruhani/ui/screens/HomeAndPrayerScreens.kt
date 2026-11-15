@@ -805,7 +805,7 @@ fun HomeDashboardScreen(
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "${schedule.currentWaqt.startFormatted} – ${schedule.currentWaqt.endFormatted}",
+                                    text = "${schedule.currentWaqtWindow.startFormatted} – ${schedule.currentWaqtWindow.endFormatted}",
                                     style = MaterialTheme.typography.labelMedium.copy(fontFamily = SpaceGroteskFontFamily),
                                     color = Color(0xFFA3B8B0)
                                 )
@@ -862,7 +862,7 @@ fun HomeDashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "${if (isBn) "শুরু" else "Started"} ${schedule.currentWaqt.startFormatted}",
+                                text = "${if (isBn) "শুরু" else "Started"} ${schedule.currentWaqtWindow.startFormatted}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFF889E96)
                             )
@@ -873,7 +873,7 @@ fun HomeDashboardScreen(
                                 color = NoorMintLuminous
                             )
                             Text(
-                                text = "${if (isBn) "শেষ" else "Ends"} ${schedule.currentWaqt.endFormatted}",
+                                text = "${if (isBn) "শেষ" else "Ends"} ${schedule.currentWaqtWindow.endFormatted}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFF889E96)
                             )
@@ -918,7 +918,7 @@ fun HomeDashboardScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = fmt(schedule.nextWaqt.startFormatted),
+                                    text = fmt(schedule.nextWaqtWindow.startFormatted),
                                     style = MaterialTheme.typography.labelLarge.copy(fontFamily = SpaceGroteskFontFamily),
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -1728,18 +1728,18 @@ fun PrayerScheduleScreen(
                     ) {
                         WaqtMetricMiniBox(
                             label = if (isBn) "শুরু (Start)" else "Start Time",
-                            value = schedule.currentWaqt.startFormatted,
+                            value = schedule.currentWaqtWindow.startFormatted,
                             modifier = Modifier.weight(1f)
                         )
                         WaqtMetricMiniBox(
                             label = if (isBn) "জামাত (Jama'at)" else "Jama'at",
-                            value = schedule.currentWaqt.jamaatFormatted,
+                            value = schedule.currentWaqtWindow.jamaatFormatted,
                             highlight = true,
                             modifier = Modifier.weight(1f)
                         )
                         WaqtMetricMiniBox(
                             label = if (isBn) "শেষ (End)" else "Waqt Ends",
-                            value = schedule.currentWaqt.endFormatted,
+                            value = schedule.currentWaqtWindow.endFormatted,
                             modifier = Modifier.weight(1f)
                         )
                     }
