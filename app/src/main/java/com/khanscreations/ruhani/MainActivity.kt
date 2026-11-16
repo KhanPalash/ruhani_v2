@@ -304,7 +304,8 @@ fun RuhaniAppRoot() {
                             )
                         }
                         if (uiState.activeSubScreen != SubScreen.SURAH_READER &&
-                            uiState.activeSubScreen != SubScreen.QIBLA
+                            uiState.activeSubScreen != SubScreen.QIBLA &&
+                            uiState.activeSubScreen != SubScreen.MOSQUES
                         ) {
                             RuhaniBottomNavigationBar(
                                 currentTab = uiState.currentTab,

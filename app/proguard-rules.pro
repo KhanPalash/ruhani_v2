@@ -26,6 +26,8 @@
 # runtime in a release build.
 -keep class com.khanscreations.ruhani.data.model.** { *; }
 -keepclassmembers class com.khanscreations.ruhani.data.model.** { *; }
+-keep class com.khanscreations.ruhani.data.remote.** { *; }
+-keepclassmembers class com.khanscreations.ruhani.data.remote.** { *; }
 
 # ---------------------------------------------------------------------------
 # Enums resolved from a stored string

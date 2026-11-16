@@ -7,4 +7,36 @@
       resources, which override this one at merge time).
     -->
     <string name="default_web_client_id" translatable="false">828442646802-0rfdu4fh4a8k5f4lss22i03oeikfnlj1.apps.googleusercontent.com</string>
+
+    <!-- MasjidNear / Nearby Mosques feature strings -->
+    <string name="live_location_active">Live GPS Active</string>
+    <string name="locating_you">Detecting live location…</string>
+    <string name="nearby_mosques_title">Nearby Mosques</string>
+    <string name="search_this_area">Search this area</string>
+    <string name="recenter_location">Recenter to live location</string>
+    <string name="toggle_map_type">Switch map style</string>
+    <string name="refresh_mosques">Refresh nearby mosques</string>
+    <string name="directions_cta">Directions</string>
+    <string name="open_in_maps_cta">Open Maps</string>
+    <string name="share_cta">Share</string>
+    <string name="permission_title">Find Nearby Mosques &amp; Live Location</string>
+    <string name="permission_subtitle">Allow location access to view your real-time GPS position on the map, live Qibla compass, and mosques closest to you.</string>
+    <string name="permission_grant_cta">Enable Live Location</string>
+    <string name="permission_settings_cta">Open App Settings</string>
+    <string name="permission_denied_rationale">Location permission is needed to detect your live coordinates, compute Qibla direction, and sort nearby mosques by walking distance.</string>
+    <string name="no_mosques_found">No mosques found within this radius. Try expanding to 20 km or searching again.</string>
+    <string name="expand_radius_10km">Expand to 20 km</string>
+    <string name="qibla_label">Qibla</string>
+    <string name="qibla_compass_title">Live Qibla Compass</string>
+    <string name="qibla_aligned">Aligned toward Qibla</string>
+    <string name="qibla_turn_right">Turn slightly right</string>
+    <string name="qibla_turn_left">Turn slightly left</string>
+    <string name="compass_sensor_unavailable">Compass sensor unavailable on this device — showing calculated Qibla bearing from true North.</string>
+    <string name="map_layer_light">Minimal Light</string>
+    <string name="map_layer_streets">Streets</string>
+    <string name="map_layer_terrain">Terrain</string>
+    <string name="osm_attribution">© OpenStreetMap contributors</string>
+    <string name="accuracy_format">±%1$d m</string>
+    <string name="mosque_count_format">%1$d mosques nearby</string>
+    <string name="walk_time_format">~%1$d min walk</string>
 </resources>
