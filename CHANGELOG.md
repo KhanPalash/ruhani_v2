@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-11-16
+
 ### Added
 
-- District auto-detection from approximate location. A "Detect district from location" control on the first-run screen and in Settings asks for `ACCESS_COARSE_LOCATION`, converts a single fix into the nearest of the 64 built-in districts, and applies it (prayer times, Qibla and alarms update immediately). Once granted, the district is re-checked on launch so the app follows the user when they travel. Picking a district by hand — or restoring one from the cloud profile — turns automatic detection off, and the setting can be re-enabled from the same button. No coordinate is stored, logged or uploaded, `ACCESS_FINE_LOCATION` is not requested, and the feature is skipped entirely when the permission is denied.
-- Live "nearby mosques" map: the Nearby Mosques screen now opens with an embedded Google Maps search for mosques around the selected district, so users can pan and zoom their own area instead of only the built-in list of famous mosques. It uses the key-less `maps.google.com … output=embed` page over HTTPS (no Maps API key, no extra permission, HTTPS-only so the network-security policy is untouched), plus a one-tap hand-off to the Google Maps app for turn-by-turn navigation.
+- Native OSMDroid Nearby Mosques finder (`MosqueFinderScreen`): replaced the embedded Google Maps WebView with a native OSMDroid map, Overpass API search with Nominatim/Photon failover, auto-expanding radius search (`1 km` to `20 km`), custom mosque markers, and a live Qibla compass sheet (`QiblaCompassSheet`).
+- Live GPS support (`ACCESS_FINE_LOCATION`) on the Nearby Mosques screen for accurate distance, walking-time estimates, and Qibla bearing.
+- District auto-detection from approximate location. A "Detect district from location" control on the first-run screen and in Settings asks for `ACCESS_COARSE_LOCATION`, converts a single fix into the nearest of the 64 built-in districts, and applies it (prayer times, Qibla and alarms update immediately). Once granted, the district is re-checked on launch so the app follows the user when they travel. Picking a district by hand — or restoring one from the cloud profile — turns automatic detection off, and the setting can be re-enabled from the same button. No coordinate is stored, logged or uploaded, and the feature is skipped entirely when the permission is denied.
 
 ### Changed
 
@@ -88,6 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of Ruhani: Quran reader with audio, prayer times, Qibla, Tasbih, Dua & Dhikr, and Google Sign-In with Firestore sync.
 
-[Unreleased]: https://gitlab.com/khanscreations3/ruhani_v2/-/compare/v2.0.1...main
-[2.0.1]: https://gitlab.com/khanscreations3/ruhani_v2/-/compare/v1.0...v2.0.1
-[1.0]: https://gitlab.com/khanscreations3/ruhani_v2/-/commits/v1.0
+[Unreleased]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.3...main
+[2.0.3]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.2...v2.0.3
+[2.0.2]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.1...v2.0.2
+[2.0.1]: https://github.com/KhanPalash/ruhani_v2/compare/v1.0...v2.0.1
+[1.0]: https://github.com/KhanPalash/ruhani_v2/commits/v1.0
