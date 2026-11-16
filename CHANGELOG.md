@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-11-16
+
+### Fixed
+
+- Cancel active Firestore cloud-sync listeners on sign-out in `SyncAndAccountViewModel` (`cloudDataJob`) and call `onSignOutSession()` before `GoogleAuthHelper.signOut()` so signing out no longer triggers `PERMISSION_DENIED: Missing or insufficient permissions.`.
+- Added a `FirebaseAuth.AuthStateListener` in `SyncAndAccountViewModel` so re-signing in with Google within the same app session updates `SyncAndAccountUiState` and restarts cloud sync immediately without requiring an app restart.
+
+### Changed
+
+- Updated version to **2.0.4** (`versionCode = 4`).
+
 ## [2.0.3] - 2026-11-16
 
 ### Added
@@ -91,7 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of Ruhani: Quran reader with audio, prayer times, Qibla, Tasbih, Dua & Dhikr, and Google Sign-In with Firestore sync.
 
-[Unreleased]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.3...main
+[Unreleased]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.4...main
+[2.0.4]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.3...v2.0.4
 [2.0.3]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/KhanPalash/ruhani_v2/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/KhanPalash/ruhani_v2/compare/v1.0...v2.0.1
