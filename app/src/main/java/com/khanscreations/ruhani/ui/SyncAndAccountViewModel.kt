@@ -24,6 +24,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -82,12 +83,17 @@ class SyncAndAccountViewModel(
     val syncAndAccountState: StateFlow<SyncAndAccountUiState> = _syncAndAccountState.asStateFlow()
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var cloudDataJob: Job? = null
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
     init {
         RuhaniPushNotificationManager.ensureNotificationChannels(appContext)
         observeNetworkConnectivity()
         if (authenticatedUserId != null && firestoreRepository != null) {
             observeCloudData(authenticatedUserId, firestoreRepository)
+        }
+        if (firestoreRepository != null) {
+            registerAuthStateListener(firestoreRepository)
         }
         checkForUpdate()
     }
@@ -166,68 +172,99 @@ class SyncAndAccountViewModel(
         _syncAndAccountState.update { it.copy(updateInfo = null) }
     }
 
+    private fun registerAuthStateListener(repo: RuhaniFirestoreRepository) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            val user = auth.currentUser
+            if (user == null) {
+                cloudDataJob?.cancel()
+                cloudDataJob = null
+                return@AuthStateListener
+            }
+            if (_syncAndAccountState.value.currentUserId != user.uid) {
+                val isGoogle = user.providerData.any { it.providerId == "google.com" }
+                _syncAndAccountState.update { state ->
+                    state.copy(
+                        hasCompletedOnboarding = true,
+                        isGuestMode = false,
+                        currentUserId = user.uid,
+                        userEmail = user.email ?: state.userEmail,
+                        displayName = user.displayName?.takeIf { it.isNotBlank() } ?: state.displayName,
+                        authProvider = if (isGoogle) "GOOGLE" else state.authProvider,
+                        errorMessage = null
+                    )
+                }
+                observeCloudData(user.uid, repo)
+            }
+        }
+        authStateListener = listener
+        FirebaseAuth.getInstance().addAuthStateListener(listener)
+    }
+
     private fun observeCloudData(uid: String, repo: RuhaniFirestoreRepository) {
-        scope.launch {
-            repo.observeUserProfile()
-                .catch { error ->
-                    val firestoreError = generateSequence(error) { it.cause }
-                        .filterIsInstance<FirebaseFirestoreException>()
-                        .firstOrNull()
-                    if (firestoreError == null && error is CancellationException) throw error
-                    val root = firestoreError ?: error
-                    Log.w("SyncAccountVM", "Profile listener error: ${root.message}")
-                    _syncAndAccountState.update { it.copy(errorMessage = root.localizedMessage) }
-                }
-                .collect { profile ->
-                    if (profile != null) {
-                        _syncAndAccountState.update { state ->
-                            state.copy(
-                                displayName = profile.displayName,
-                                phone = profile.phone ?: state.phone,
-                                language = profile.language,
-                                themeMode = profile.themeMode
-                            )
+        cloudDataJob?.cancel()
+        cloudDataJob = scope.launch {
+            launch {
+                repo.observeUserProfile()
+                    .catch { error ->
+                        val firestoreError = generateSequence(error) { it.cause }
+                            .filterIsInstance<FirebaseFirestoreException>()
+                            .firstOrNull()
+                        if (firestoreError == null && error is CancellationException) throw error
+                        val root = firestoreError ?: error
+                        Log.w("SyncAccountVM", "Profile listener error: ${root.message}")
+                        _syncAndAccountState.update { it.copy(errorMessage = root.localizedMessage) }
+                    }
+                    .collect { profile ->
+                        if (profile != null) {
+                            _syncAndAccountState.update { state ->
+                                state.copy(
+                                    displayName = profile.displayName,
+                                    phone = profile.phone ?: state.phone,
+                                    language = profile.language,
+                                    themeMode = profile.themeMode
+                                )
+                            }
+                            onUserProfileLoaded?.invoke(profile)
+                        } else {
+                            syncProfileToCloud()
                         }
-                        onUserProfileLoaded?.invoke(profile)
-                    } else {
-                        syncProfileToCloud()
                     }
-                }
-        }
+            }
 
-        scope.launch {
-            repo.observeSalatLogs()
-                .catch { error ->
-                    val firestoreError = generateSequence(error) { it.cause }
-                        .filterIsInstance<FirebaseFirestoreException>()
-                        .firstOrNull()
-                    if (firestoreError == null && error is CancellationException) throw error
-                    Log.w("SyncAccountVM", "SalatLogs listener error: ${error.message}")
-                }
-                .collect { logs ->
-                    if (logs.isNotEmpty()) {
-                        onSalatLogsLoaded?.invoke(logs)
+            launch {
+                repo.observeSalatLogs()
+                    .catch { error ->
+                        val firestoreError = generateSequence(error) { it.cause }
+                            .filterIsInstance<FirebaseFirestoreException>()
+                            .firstOrNull()
+                        if (firestoreError == null && error is CancellationException) throw error
+                        Log.w("SyncAccountVM", "SalatLogs listener error: ${error.message}")
                     }
-                }
-        }
+                    .collect { logs ->
+                        if (logs.isNotEmpty()) {
+                            onSalatLogsLoaded?.invoke(logs)
+                        }
+                    }
+            }
 
-        scope.launch {
-            repo.observeBookmarks()
-                .catch { error ->
-                    val firestoreError = generateSequence(error) { it.cause }
-                        .filterIsInstance<FirebaseFirestoreException>()
-                        .firstOrNull()
-                    if (firestoreError == null && error is CancellationException) throw error
-                    Log.w("SyncAccountVM", "Bookmarks listener error: ${error.message}")
-                }
-                .collect { bookmarks ->
-                    onBookmarksLoaded?.invoke(bookmarks)
-                }
+            launch {
+                repo.observeBookmarks()
+                    .catch { error ->
+                        val firestoreError = generateSequence(error) { it.cause }
+                            .filterIsInstance<FirebaseFirestoreException>()
+                            .firstOrNull()
+                        if (firestoreError == null && error is CancellationException) throw error
+                        Log.w("SyncAccountVM", "Bookmarks listener error: ${error.message}")
+                    }
+                    .collect { bookmarks ->
+                        onBookmarksLoaded?.invoke(bookmarks)
+                    }
+            }
         }
     }
 
     fun syncProfileToCloud() {
-        val uid = authenticatedUserId ?: _syncAndAccountState.value.currentUserId ?: return
+        val uid = _syncAndAccountState.value.currentUserId ?: return
         val repo = firestoreRepository ?: return
         val profile = profileDataProvider?.invoke() ?: return
         scope.launch {
@@ -359,6 +396,8 @@ class SyncAndAccountViewModel(
     }
 
     fun signOutUserSession() {
+        cloudDataJob?.cancel()
+        cloudDataJob = null
         SecureAuthAndPrivacyManager.signOutLocalSession(appContext)
         FirebaseAuthManager.signOut()
         _syncAndAccountState.update {
@@ -367,6 +406,7 @@ class SyncAndAccountViewModel(
                 userEmail = null,
                 authProvider = "GUEST",
                 isGuestMode = true,
+                errorMessage = null,
                 syncStatusMessage = "সাইন আউট সম্পন্ন হয়েছে"
             )
         }
@@ -646,6 +686,15 @@ class SyncAndAccountViewModel(
     }
 
     fun cleanup() {
+        cloudDataJob?.cancel()
+        cloudDataJob = null
+        authStateListener?.let {
+            try {
+                FirebaseAuth.getInstance().removeAuthStateListener(it)
+            } catch (_: Exception) {
+            }
+        }
+        authStateListener = null
         try {
             val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             networkCallback?.let { cm?.unregisterNetworkCallback(it) }

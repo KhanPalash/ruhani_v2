@@ -2130,8 +2130,8 @@ fun ProfileScreen(
                             OutlinedButton(
                                 onClick = {
                                     scope.launch {
-                                        GoogleAuthHelper.signOut(context)
                                         onSignOutSession()
+                                        GoogleAuthHelper.signOut(context)
                                     }
                                 },
                                 shape = RoundedCornerShape(12.dp),
