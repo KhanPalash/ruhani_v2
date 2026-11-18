@@ -44,7 +44,7 @@ Ruhani is a comprehensive Islamic lifestyle Android app built with Kotlin and Je
 
 ---
 
-(Download)[https://github.com/KhanPalash/ruhani_v2/releases/download/v2.0.4/app-release-v2.0.4.apk]
+[Download](https://github.com/KhanPalash/ruhani_v2/releases/download/v2.0.4/app-release-v2.0.4.apk)
 
 ---
 
